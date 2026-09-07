@@ -63,8 +63,9 @@ export function checkout(
   for (const line of cart) {
     if (line.productId > 0) {
       const prod = getDb().getFirstSync<{ stock: number | null }>('SELECT stock FROM products WHERE id = ?', [line.productId])
-      if (prod?.stock !== null && prod.stock !== undefined && prod.stock < line.qty) {
-        throw new Error(`Stok ${line.productName} tidak cukup (sisa ${prod.stock})`)
+      const stock = prod?.stock
+      if (stock !== null && stock !== undefined && stock < line.qty) {
+        throw new Error(`Stok ${line.productName} tidak cukup (sisa ${stock})`)
       }
     }
   }
