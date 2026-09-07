@@ -11,10 +11,10 @@ interface Props {
 }
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'kasir', label: 'Kasir', icon: 'point-of-sale' },
-  { id: 'produk', label: 'Produk', icon: 'package-variant-closed' },
-  { id: 'riwayat', label: 'Laporan', icon: 'chart-bar' },
-  { id: 'pengaturan', label: 'Lainnya', icon: 'cog-outline' },
+  { id: 'kasir', label: 'Kasir', icon: 'cash-register' },
+  { id: 'produk', label: 'Produk', icon: 'cube-outline' },
+  { id: 'riwayat', label: 'Laporan', icon: 'chart-box-outline' },
+  { id: 'pengaturan', label: 'Lainnya', icon: 'dots-horizontal' },
 ]
 
 export default function FloatingBottomBar({ active, onChange }: Props) {
