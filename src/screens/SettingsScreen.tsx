@@ -1,10 +1,10 @@
 import React, { useState } from 'react'
-import { View, StyleSheet, ScrollView, Linking, Pressable } from 'react-native'
-import { Text, Surface, Button, List, TextInput } from 'react-native-paper'
+import { View, StyleSheet, ScrollView, Linking, Pressable, Alert, Image } from 'react-native'
+import { Text, Surface, Button, List, TextInput, SegmentedButtons } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import { exportDailyReport } from '../utils/export'
 import { createBackup, restoreFromSql } from '../utils/backup'
-import { getSetting, setSetting } from '../utils/settings'
+import { getSetting, setSetting, getPaperSize, type PaperSize } from '../utils/settings'
 
 interface Props {
   dark: boolean
@@ -17,11 +17,13 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [buyLink, setBuyLink] = useState(() => getSetting('buyLink', 'https://lynk.id/chuckie99'))
   const [editingStore, setEditingStore] = useState(false)
   const [editingLink, setEditingLink] = useState(false)
+  const [paperSize, setPaperSize] = useState<PaperSize>(() => getPaperSize())
+  const [logoUri, setLogoUri] = useState(() => getSetting('storeLogoUri', ''))
 
   const saveStore = () => {
     setSetting('storeName', storeName.trim())
     setEditingStore(false)
-    setStatus('Nama toko disimpan')
+    setStatus('Nama toko disimpan — akan muncul di struk')
     setTimeout(() => setStatus(''), 3000)
   }
 
@@ -30,6 +32,53 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     setEditingLink(false)
     setStatus('Link pembelian disimpan')
     setTimeout(() => setStatus(''), 3000)
+  }
+
+  const onPickLogo = async () => {
+    try {
+      const ImagePicker = await import('expo-image-picker')
+      const { File, Directory, Paths } = await import('expo-file-system')
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        Alert.alert('Izin dibutuhkan', 'Berikan izin galeri untuk pilih logo.')
+        return
+      }
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.7,
+        allowsEditing: true,
+        aspect: [1, 1],
+      })
+      if (res.canceled || !res.assets?.[0]) return
+      const asset = res.assets[0]
+      const dir = new Directory(Paths.document, 'pos_images')
+      if (!dir.exists) dir.create()
+      const dest = new File(dir, 'store_logo.png')
+      if (dest.exists) dest.delete()
+      const src = new File(asset.uri)
+      src.copy(dest)
+      setSetting('storeLogoUri', dest.uri)
+      setLogoUri(dest.uri)
+      setStatus('Logo disimpan — akan muncul di struk thermal & PDF')
+      setTimeout(() => setStatus(''), 3000)
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  const onRemoveLogo = () => {
+    setSetting('storeLogoUri', '')
+    setLogoUri('')
+    setStatus('Logo dihapus')
+    setTimeout(() => setStatus(''), 2000)
+  }
+
+  const onPaperSizeChange = (v: string) => {
+    const nv = v as PaperSize
+    setPaperSize(nv)
+    setSetting('paperSize', nv)
+    setStatus(`Ukuran kertas: ${nv} — thermal 58mm kecil, 80mm sedang, A4 untuk PDF/email`)
+    setTimeout(() => setStatus(''), 3500)
   }
 
   const doExport = async () => {
@@ -46,6 +95,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     try {
       setStatus('Membuat backup database...')
       const r = await createBackup()
+      setSetting('lastBackupAt', new Date().toISOString())
       setStatus(r === 'shared' ? 'Backup dibuat — simpan ke Google Drive/WA sendiri' : 'Share tidak tersedia')
     } catch (e) {
       setStatus('Gagal backup: ' + (e instanceof Error ? e.message : String(e)))
@@ -57,8 +107,9 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
       const DocumentPicker = await import('expo-document-picker')
       const res = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true })
       if (res.canceled) return
-      const FileSystem = await import('expo-file-system')
-      const content = await FileSystem.readAsStringAsync(res.assets[0].uri)
+      const { File } = await import('expo-file-system')
+      const file = new File(res.assets[0].uri)
+      const content = file.textSync()
       setStatus('Memulihkan data...')
       setTimeout(() => {
         const r = restoreFromSql(content)
@@ -91,6 +142,42 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
+      </Surface>
+
+      <Text style={styles.section}>Logo Struk (Upload PNG)</Text>
+      <Surface style={styles.card} elevation={0}>
+        <View style={{ padding: 14, gap: 12 }}>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>Logo akan muncul di atas struk thermal 58mm/80mm & PDF A4. Upload PNG transparan 512x512 ideal.</Text>
+          {logoUri ? (
+            <View style={{ alignItems: 'center', gap: 10 }}>
+              <Image source={{ uri: logoUri }} style={{ width: 96, height: 96, borderRadius: 12, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }} resizeMode="contain" />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button mode="contained" onPress={onPickLogo} compact>Ganti Logo</Button>
+                <Button mode="text" onPress={onRemoveLogo} textColor={colors.error} compact>Hapus</Button>
+              </View>
+            </View>
+          ) : (
+            <Button mode="contained" icon="image-plus" onPress={onPickLogo}>Pilih Logo dari Galeri</Button>
+          )}
+        </View>
+      </Surface>
+
+      <Text style={styles.section}>Ukuran Kertas Struk</Text>
+      <Surface style={styles.card} elevation={0}>
+        <View style={{ padding: 14, gap: 10 }}>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>Thermal kecil (58mm) untuk printer bluetooth mini. 80mm lebih lega. A4 untuk PDF/email — gede & rapi.</Text>
+          <SegmentedButtons
+            value={paperSize}
+            onValueChange={onPaperSizeChange}
+            buttons={[
+              { value: '58mm', label: '58mm' },
+              { value: '80mm', label: '80mm' },
+              { value: 'A4', label: 'A4 PDF' },
+            ]}
+            density="small"
+          />
+          <Text style={{ fontSize: 11, color: colors.greenDark, fontWeight: '700' }}>Aktif: {paperSize} — {paperSize === '58mm' ? 'Thermal mini (paling umum)' : paperSize === '80mm' ? 'Thermal lebar' : 'PDF A4 untuk email/WA'}</Text>
+        </View>
       </Surface>
 
       <Text style={styles.section}>Tema</Text>
@@ -158,7 +245,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="POS UMKM v1.3" description="Kasir offline untuk warung & kedai" />
+        <List.Item title="POS UMKM v1.4.2" description="Kasir offline untuk warung & kedai — thermal 58mm/80mm + A4 PDF" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
       </Surface>
 

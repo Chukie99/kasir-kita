@@ -2,13 +2,13 @@
   "expo": {
     "name": "POS UMKM",
     "slug": "pos-umkm-android",
-    "version": "1.4.2",
+    "version": "1.4.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.chukie99.posumkm",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "backgroundColor": "#7895B2",
         "foregroundImage": "./assets/android-icon-foreground.png"
@@ -18,13 +18,19 @@
       "expo-sqlite",
       "expo-sharing",
       "expo-document-picker",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-splash-screen"
     ],
     "owner": "chuckie99",
     "extra": {
       "eas": {
         "projectId": "ab6dc31a-8a9c-4ac9-ba4d-0cbea1919fbc"
       }
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F2440"
     }
   }
 }

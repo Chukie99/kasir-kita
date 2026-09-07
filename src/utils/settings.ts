@@ -18,3 +18,8 @@ export type ThemePref = 'light' | 'dark'
 export function getTheme(): ThemePref {
   return getSetting('theme', 'light') === 'dark' ? 'dark' : 'light'
 }
+export type PaperSize = '58mm' | '80mm' | 'A4'
+export function getPaperSize(): PaperSize {
+  const v = getSetting('paperSize', '58mm')
+  return (v === '80mm' || v === 'A4' ? v : '58mm') as PaperSize
+}

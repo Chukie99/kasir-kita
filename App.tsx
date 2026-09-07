@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { View } from 'react-native'
+import { View, Text } from 'react-native'
 import { PaperProvider, Appbar } from 'react-native-paper'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 
+import * as SplashScreen from 'expo-splash-screen'
 import { initDatabase, seedDemoData } from './src/db/database'
 import { theme, colors, applyTheme } from './src/theme/theme'
 import { getTheme, getSetting, setSetting, type ThemePref } from './src/utils/settings'
@@ -28,6 +29,7 @@ export default function App() {
   const [themeTick, setThemeTick] = useState(0)
 
   useEffect(() => {
+    SplashScreen.preventAutoHideAsync().catch(() => {})
     initDatabase()
     seedDemoData()
     setDeviceCode(formatDeviceCode(getDeviceId()))
@@ -38,6 +40,10 @@ export default function App() {
     setReady(true)
   }, [])
 
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {})
+  }, [ready])
+
   const toggleTheme = () => {
     const next: ThemePref = dark ? 'light' : 'dark'
     setSetting('theme', next)
@@ -46,7 +52,19 @@ export default function App() {
     setThemeTick((t) => t + 1)
   }
 
-  if (!ready) return null
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0F2440', alignItems: 'center', justifyContent: 'center' }}>
+        <View style={{ width: 72, height: 72, borderRadius: 18, backgroundColor: '#7895B2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#fff', opacity: 0.95 }} />
+        </View>
+        <View style={{ alignItems: 'center' }}>
+          <View><Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>POS UMKM</Text></View>
+          <View><Text style={{ color: '#AEBDCA', fontSize: 11, marginTop: 4 }}>Memuat kasir...</Text></View>
+        </View>
+      </View>
+    )
+  }
 
   return (
     <PaperProvider theme={theme}>

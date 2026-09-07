@@ -11,9 +11,9 @@ interface Props {
 }
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'kasir', label: 'Kasir', icon: 'cash-register' },
+  { id: 'kasir', label: 'Kasir', icon: 'storefront-outline' },
   { id: 'produk', label: 'Produk', icon: 'cube-outline' },
-  { id: 'riwayat', label: 'Laporan', icon: 'chart-box-outline' },
+  { id: 'riwayat', label: 'Laporan', icon: 'chart-bar' },
   { id: 'pengaturan', label: 'Lainnya', icon: 'dots-horizontal' },
 ]
 
