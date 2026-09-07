@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 14,
     right: 14,
-    bottom: 16,
+    bottom: 84,
   },
   bar: {
     flexDirection: 'row',

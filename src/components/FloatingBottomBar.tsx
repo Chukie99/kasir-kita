@@ -1,6 +1,6 @@
 import React from 'react'
 import { View, StyleSheet, Pressable, Platform } from 'react-native'
-import { Text } from 'react-native-paper'
+import { Text, Icon } from 'react-native-paper'
 import { colors } from '../theme/theme'
 
 export type Tab = 'kasir' | 'produk' | 'riwayat' | 'pengaturan'
@@ -11,10 +11,10 @@ interface Props {
 }
 
 const ITEMS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'kasir', label: 'Kasir', icon: 'KSR' },
-  { id: 'produk', label: 'Produk', icon: 'PRD' },
-  { id: 'riwayat', label: 'Laporan', icon: 'LPR' },
-  { id: 'pengaturan', label: 'Lainnya', icon: 'LNY' },
+  { id: 'kasir', label: 'Kasir', icon: 'point-of-sale' },
+  { id: 'produk', label: 'Produk', icon: 'package-variant-closed' },
+  { id: 'riwayat', label: 'Laporan', icon: 'chart-bar' },
+  { id: 'pengaturan', label: 'Lainnya', icon: 'cog-outline' },
 ]
 
 export default function FloatingBottomBar({ active, onChange }: Props) {
@@ -35,7 +35,7 @@ export default function FloatingBottomBar({ active, onChange }: Props) {
               ]}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Text style={[styles.icon, isActive && styles.iconActive]}>{item.icon}</Text>
+                <Icon source={item.icon} size={18} color={isActive ? '#FFF' : colors.textMuted} />
               </View>
               <Text style={[styles.label, isActive && styles.labelActive]}>{item.label}</Text>
             </Pressable>

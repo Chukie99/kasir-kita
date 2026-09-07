@@ -68,7 +68,7 @@ export default function HistoryScreen() {
         ))}
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 110 }}>
         <View style={styles.cards}>
           <StatCard label="Transaksi" value={String(rows.length)} />
           <StatCard label={`Omzet ${PERIOD_LABEL[period]}`} value={'Rp ' + revenue.toLocaleString('id-ID')} highlight />

@@ -70,7 +70,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={{ paddingBottom: 32 }}>
+    <ScrollView style={styles.root} contentContainerStyle={{ paddingBottom: 110 }}>
       <Text style={styles.section}>Toko</Text>
       <Surface style={styles.card} elevation={0}>
         {!editingStore ? (

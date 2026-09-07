@@ -167,7 +167,7 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 14, paddingBottom: 110 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 14, paddingBottom: 180 },
   card: {
     width: '31.5%',
     flexGrow: 1,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   stockTagTxt: { color: '#FFF', fontSize: 9, fontWeight: '800' },
   cartPanel: {
-    position: 'absolute', left: 12, right: 12, bottom: 88,
+    position: 'absolute', left: 12, right: 12, bottom: 150,
     backgroundColor: colors.surface, borderRadius: 18,
     borderWidth: 1, borderColor: colors.border,
     paddingVertical: 12, paddingHorizontal: 16,

@@ -98,7 +98,7 @@ export default function ManageProductsScreen() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 100 }}>
         <Button mode="contained" icon="plus" onPress={openAdd} style={styles.addBtn} contentStyle={{ height: 48 }}>
           Tambah Produk Baru
         </Button>
