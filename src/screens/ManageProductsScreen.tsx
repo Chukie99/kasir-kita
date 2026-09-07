@@ -14,7 +14,7 @@ const EMPTY_EDIT: EditingState = { id: null, name: '', price: '', stock: '', ima
 
 export default function ManageProductsScreen() {
   const [products, setProducts] = useState<ProductRow[]>(() => listAllProducts())
-  const [categories] = useState(() => listCategories())
+  const [categories, setCategories] = useState(() => listCategories())
   const [editing, setEditing] = useState<EditingState | null>(null)
   const [newCat, setNewCat] = useState('')
   const [showNewCat, setShowNewCat] = useState(false)
@@ -29,7 +29,7 @@ export default function ManageProductsScreen() {
   const pickImage = async () => {
       try {
         const ImagePicker = await import('expo-image-picker')
-        const FileSystem = await import('expo-file-system')
+        const { File, Directory, Paths } = await import('expo-file-system')
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
         if (!perm.granted) {
           Alert.alert('Izin dibutuhkan', 'Berikan izin akses galeri untuk memilih foto produk.')
@@ -43,15 +43,13 @@ export default function ManageProductsScreen() {
         })
         if (res.canceled || !res.assets?.[0]) return
         const asset = res.assets[0]
-        const fileName = asset.uri.split('/').pop()
-        // @ts-ignore - expo-file-system v57 API
-        const docDir = FileSystem.default?.documentDirectory || ''
-        const destUri = `${docDir}pos_images/${fileName}`
-        // @ts-ignore - expo-file-system v57 API
-        await FileSystem.default.makeDirectoryAsync(`${docDir}pos_images/`, { intermediates: true })
-        // @ts-ignore - expo-file-system v57 API
-        await FileSystem.default.copyAsync({ from: asset.uri, to: destUri })
-        setEditing((prev) => (prev ? { ...prev, imageUri: destUri } : prev))
+        const fileName = asset.uri.split('/').pop() || `pos_${Date.now()}.jpg`
+        const dir = new Directory(Paths.document, 'pos_images')
+        if (!dir.exists) dir.create()
+        const dest = new File(dir, fileName)
+        const source = new File(asset.uri)
+        source.copy(dest)
+        setEditing((prev) => (prev ? { ...prev, imageUri: dest.uri } : prev))
       } catch (e) {
         Alert.alert('Gagal', e instanceof Error ? e.message : String(e))
       }
@@ -90,6 +88,7 @@ export default function ManageProductsScreen() {
   const saveCategory = () => {
     try {
       addCategory(newCat)
+      setCategories(listCategories())
       setNewCat('')
       setShowNewCat(false)
     } catch (e) {

@@ -47,10 +47,11 @@ export function toggleProductActive(id: number, active: boolean): void {
 
 /** Soft-hide is safer than delete (keeps transaction history readable). */
 export function deleteProduct(id: number): void {
-  // Only allowed when product has never been sold
+  const nameRow = getDb().getFirstSync<{ name: string }>('SELECT name FROM products WHERE id = ?', [id])
+  if (!nameRow) return
   const used = getDb().getFirstSync<{ c: number }>(
-    'SELECT COUNT(*) AS c FROM transaction_items ti JOIN products p ON p.id = ? WHERE 1=1 AND EXISTS(SELECT 1 FROM transaction_items t2 WHERE t2.product_name = (SELECT name FROM products WHERE id = ?)) LIMIT 1',
-    [id, id]
+    'SELECT COUNT(*) AS c FROM transaction_items WHERE product_name = ?',
+    [nameRow.name]
   )
   if ((used?.c ?? 0) === 0) {
     getDb().runSync('DELETE FROM products WHERE id = ?', [id])

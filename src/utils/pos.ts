@@ -59,6 +59,16 @@ export function checkout(
   const effectivePaid = paymentMethod === 'qris' ? total : paid
   const change = effectivePaid - total
 
+  // Validasi stok sebelum transaksi — jangan sampai minus
+  for (const line of cart) {
+    if (line.productId > 0) {
+      const prod = getDb().getFirstSync<{ stock: number | null }>('SELECT stock FROM products WHERE id = ?', [line.productId])
+      if (prod?.stock !== null && prod.stock !== undefined && prod.stock < line.qty) {
+        throw new Error(`Stok ${line.productName} tidak cukup (sisa ${prod.stock})`)
+      }
+    }
+  }
+
   const db = getDb()
   const invoice = nextInvoice()
   db.execSync('BEGIN')
@@ -73,16 +83,15 @@ export function checkout(
     const insItem = db.prepareSync(
       'INSERT INTO transaction_items (transaction_id, product_name, unit_price, qty, modifiers_label, line_total) VALUES (?, ?, ?, ?, ?, ?)'
     )
-    // Kurangi stok produk yang dilacak (stock NOT NULL)
-    const decStock = db.prepareSync('UPDATE products SET stock = stock - ? WHERE id = ? AND stock IS NOT NULL')
+    const decStock = db.prepareSync('UPDATE products SET stock = stock - ? WHERE id = ? AND stock IS NOT NULL AND stock >= ?')
     for (const line of cart) {
       const modLabel = line.modifiers.map((m) => m.label).join(', ')
       insItem.executeSync(txId, line.productName, line.unitPrice, line.qty, modLabel, line.unitPrice * line.qty)
-      if (line.productId > 0) decStock.executeSync(line.qty, line.productId)
+      if (line.productId > 0) decStock.executeSync(line.qty, line.productId, line.qty)
     }
     db.execSync('COMMIT')
   } catch (e) {
-    db.execSync('ROLLBACK')
+    try { db.execSync('ROLLBACK') } catch {}
     throw e
   }
   return { invoice, total, change }

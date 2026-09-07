@@ -1,6 +1,6 @@
 import { getDb } from '../db/database'
 import * as Sharing from 'expo-sharing'
-import * as FileSystem from 'expo-file-system'
+import { File, Directory, Paths } from 'expo-file-system'
 
 /** Export the whole database (all tables) as a .sql backup file and share it. */
 export async function createBackup(): Promise<'shared' | 'unavailable'> {
@@ -10,7 +10,6 @@ export async function createBackup(): Promise<'shared' | 'unavailable'> {
 
   const dump: string[] = ['BEGIN TRANSACTION;']
 
-  // Table order respects FK dependencies
   const tables = [
     'categories', 'products', 'modifier_groups', 'modifiers',
     'transactions', 'transaction_items', 'license', 'settings',
@@ -35,11 +34,12 @@ export async function createBackup(): Promise<'shared' | 'unavailable'> {
   dump.push('COMMIT;')
 
   const sql = dump.join('\n')
-  await FileSystem.writeAsStringAsync(FileSystem.Paths.cache + '/' + fileName, sql,
-    { encoding: FileSystem.EncodingType.UTF8 })
+  const file = new File(Paths.cache, fileName)
+  file.create({ overwrite: true })
+  file.write(sql)
 
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(FileSystem.Paths.cache + '/' + fileName, {
+    await Sharing.shareAsync(file.uri, {
       mimeType: 'application/sql',
       dialogTitle: 'Simpan Backup Data POS',
     })
@@ -56,19 +56,24 @@ export function restoreFromSql(sqlText: string): { ok: boolean; message: string 
   if (!sqlText.trim()) return { ok: false, message: 'File backup kosong' }
   if (!sqlText.includes('INSERT INTO')) return { ok: false, message: 'Bukan file backup yang valid' }
 
+  // Strip outer transaction wrappers from the dump so we don't nest BEGIN inside BEGIN
+  const stripped = sqlText
+    .replace(/^\s*BEGIN TRANSACTION;\s*/i, '')
+    .replace(/\s*COMMIT;\s*$/i, '')
+    .trim()
+
   const db = getDb()
   db.execSync('BEGIN')
   try {
-    // Wipe current data first so restore is clean (keep schema)
     for (const t of ['transaction_items', 'transactions', 'modifiers',
                      'modifier_groups', 'products', 'categories']) {
       db.execSync(`DELETE FROM ${t};`)
     }
-    db.execSync(sqlText)
+    db.execSync(stripped)
     db.execSync('COMMIT')
     return { ok: true, message: 'Data berhasil dipulihkan' }
   } catch (e) {
-    db.execSync('ROLLBACK')
+    try { db.execSync('ROLLBACK') } catch {}
     return { ok: false, message: e instanceof Error ? e.message : String(e) }
   }
 }

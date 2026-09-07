@@ -1,25 +1,25 @@
-import React from 'react'
 import { MD3LightTheme, configureFonts } from 'react-native-paper'
 
 /**
- * Palet brand POS UMKM:
- *   teal   #249D8F — aksi utama / brand
- *   kuning #E9C46A — aksen, highlight, badge
- *   terracotta #E76F51 — error / warning / harga
- *   krem   #FDF0D5 — latar lembut, chip
+ * POS UMKM — Palet Pastel Profesional v1.4
+ * Sumber: ColorHunt Pastel — https://colorhunt.co/palette/f5efe6e8dfcaaebdca7895b2
+ *   #F5EFE6 — warm cream (bg utama, lembut di mata kasir seharian)
+ *   #E8DFCA — beige sand (chip, card highlight)
+ *   #AEBDCA — dusty blue-grey (border, secondary)
+ *   #7895B2 — steel blue (primary aksi: Bayar, Aktif, Highlight)
  *
- * Primary teal dipakai ketat untuk tombol utama (Bayar/Checkout)
- * supaya jempol selalu mendarat di tombol yang benar.
+ * Kenapa ini? 4 warna selaras, muted, premium — tidak norak, tidak gelap,
+ * tetap kontras untuk jempol kasir. Cocok untuk foto struk & listing Lynk.id.
  */
 
-// Font: pakai system default untuk konsistensi tiap platform.
+// Font simple — Inter/System clean, tanpa dekorasi
 const fontConfig = {
   default: {
     fontFamily: 'System',
     fontWeight: '400' as const,
     fontSize: 14,
     lineHeight: 20,
-    letterSpacing: 0.25,
+    letterSpacing: 0.15,
   },
 }
 
@@ -27,71 +27,70 @@ export const theme = {
   ...MD3LightTheme,
   colors: {
     ...MD3LightTheme.colors,
-    background: '#FBF6EC',
+    background: '#F5EFE6',
     surface: '#FFFFFF',
-    surfaceVariant: '#FDF0D5',
-    primary: '#249D8F',
+    surfaceVariant: '#E8DFCA',
+    primary: '#7895B2',
     onPrimary: '#FFFFFF',
-    primaryContainer: '#CDEAE6',
-    onPrimaryContainer: '#0E4A43',
-    secondary: '#2A2721',
+    primaryContainer: '#DBE6F0',
+    onPrimaryContainer: '#1E3447',
+    secondary: '#5A758F',
     onSecondary: '#FFFFFF',
-    secondaryContainer: '#FDF0D5',
-    onSecondaryContainer: '#2A2721',
-    tertiary: '#B3571F',
-    error: '#C74A28',
+    secondaryContainer: '#E8DFCA',
+    onSecondaryContainer: '#2E3A47',
+    tertiary: '#8AA0B5',
+    error: '#D98C7A',
     onError: '#FFFFFF',
-    errorContainer: '#FBE0D8',
-    onErrorContainer: '#5C1A08',
-    outline: '#8A8578',
-    outlineVariant: '#EADFC8',
+    errorContainer: '#FBE9E4',
+    onErrorContainer: '#5C2A1A',
+    outline: '#AEBDCA',
+    outlineVariant: '#E8DFCA',
   },
   fonts: configureFonts({ config: fontConfig }),
 }
 
 function palette(mode: 'light' | 'dark') {
   const base = {
-    teal: '#249D8F',
-    yellow: '#E9C46A',
-    terracotta: '#E76F51',
-    cream: '#FDF0D5',
-    blue: '#2A9D8F',
+    steel: '#7895B2',
+    dusty: '#AEBDCA',
+    sand: '#E8DFCA',
+    cream: '#F5EFE6',
   }
   if (mode === 'dark') {
     return {
-      bg: '#0E1E1C',
-      surface: '#142420',
-      text: '#F0EBDF',
-      textMuted: '#A8B5B0',
-      green: base.teal,       // teal utama tetap konsisten
-      greenDark: '#7BD9CE',
-      blue: '#E8845F',
-      yellow: base.yellow,
-      terra: base.terracotta,
-      cream: '#1D2C29',
-      chipBg: '#1D2C29',
-      badgeBg: '#3A2F14',
-      badgeText: base.yellow,
-      border: '#2A3B37',
-      error: base.terracotta,
+      bg: '#1B2838',
+      surface: '#223449',
+      text: '#EAF0F6',
+      textMuted: '#9AAFC2',
+      green: base.steel,
+      greenDark: '#8FB0D4',
+      blue: '#AEBDCA',
+      yellow: base.sand,
+      terra: '#E0A090',
+      cream: '#253A4E',
+      chipBg: '#253A4E',
+      badgeBg: '#2A3F55',
+      badgeText: base.sand,
+      border: '#2F455C',
+      error: '#E0A090',
     }
   }
   return {
-    bg: '#FBF6EC',
+    bg: '#F5EFE6',
     surface: '#FFFFFF',
-    text: '#2A2721',
-    textMuted: '#6E6A5E',
-    green: base.teal,
-    greenDark: '#17766B',
-    blue: base.blue,
-    yellow: base.yellow,
-    terra: base.terracotta,
+    text: '#2E3A47',
+    textMuted: '#7A8EA3',
+    green: base.steel,
+    greenDark: '#5A7A9B',
+    blue: base.dusty,
+    yellow: base.sand,
+    terra: '#D98C7A',
     cream: base.cream,
-    chipBg: '#FFF8F0',
-    badgeBg: '#FBEFD2',
-    badgeText: '#9A5312',
-    border: '#EADFC8',
-    error: '#C74A28',
+    chipBg: '#FAF6F0',
+    badgeBg: '#EAF0F6',
+    badgeText: '#3A5570',
+    border: '#D6E0E8',
+    error: '#D98C7A',
   }
 }
 
@@ -100,4 +99,3 @@ export let colors = palette('light')
 export function applyTheme(mode: 'light' | 'dark') {
   colors = palette(mode)
 }
-

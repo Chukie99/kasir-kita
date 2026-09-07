@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# POS UMKM — crash logs & local
+*.log
+posumkm_crash.log
+C:*.log

@@ -1,6 +1,6 @@
 import { getDb } from '../db/database'
 import * as Sharing from 'expo-sharing'
-import * as FileSystem from 'expo-file-system'
+import { File, Paths } from 'expo-file-system'
 
 /** Export daily sales report as a CSV file and open the Android share sheet. */
 export async function exportDailyReport(): Promise<'shared' | 'unavailable'> {
@@ -31,13 +31,14 @@ export async function exportDailyReport(): Promise<'shared' | 'unavailable'> {
   lines.push('')
   lines.push(`TOTAL OMZET,,,,,,${revenue},`)
 
-  const csv = '\uFEFF' + lines.join('\n') // BOM so Excel opens UTF-8 correctly
+  const csv = '\uFEFF' + lines.join('\n')
   const fileName = `laporan-pos-${today}.csv`
-  const path = FileSystem.Paths.cache + '/' + fileName
-  await FileSystem.writeAsStringAsync(path, csv, { encoding: FileSystem.EncodingType.UTF8 })
+  const file = new File(Paths.cache, fileName)
+  file.create({ overwrite: true })
+  file.write(csv)
 
   if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(path, { mimeType: 'text/csv', dialogTitle: 'Bagikan Laporan Harian' })
+    await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Bagikan Laporan Harian' })
     return 'shared'
   }
   return 'unavailable'
