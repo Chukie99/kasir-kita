@@ -44,3 +44,7 @@ yarn-error.*
 *.log
 posumkm_crash.log
 C:*.log
+build_status.txt
+apk/pos-umkm-v1.4.0.apk
+apk/pos-umkm-v1.4.1.apk
+apk/pos-umkm-v1.4.2.apk
