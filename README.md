@@ -1,6 +1,6 @@
 # Kasir Kita — Kasir Offline untuk Warung, Kedai & Kafe
 
-**v1.0.0 (build 1)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
+**v1.0.1 (build 1)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
 
 ![Expo](https://img.shields.io/badge/Expo-57-black) ![RN](https://img.shields.io/badge/React_Native-0.86-blue) ![TS](https://img.shields.io/badge/TypeScript-strict-blue) ![Offline](https://img.shields.io/badge/Offline-100%25-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -10,7 +10,7 @@
 
 ---
 
-## ✨ Fitur v1.0.0
+## ✨ Fitur v1.0.1
 
 ### 🛒 Kasir — 1-Tap Jual (ala Kasir Pintar & Loyverse)
 - Grid produk **foto 96px** 2-kolom (3-kolom di tablet), nama & harga besar — **tap = +1** tanpa modal
@@ -80,7 +80,7 @@ eas build -p android --profile production # → .aab (Play Store)
 | `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
 | `production` | `.aab` | Upload Google Play |
 
-APK history: `apk/kasir-kita-v1.0.0.apk` … `v1.0.0.apk` (74M each) — lihat [Releases](https://github.com/Chukie99/kasir-kita-android/releases)
+APK history: `apk/kasir-kita-v1.0.1.apk` … `v1.0.1.apk` (74M each) — lihat [Releases](https://github.com/Chukie99/kasir-kita-android/releases)
 
 ## 🔑 Key Generator (untuk penjual)
 
@@ -139,7 +139,7 @@ Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px therm
 
 ## 📋 Changelog
 
-- **v1.0.0 (10)** — Fix ikon kotak-kotak (outline valid), splash loading navy, logo PNG di struk, pilih kertas 58/80/A4
+- **v1.0.1 (10)** — Fix ikon kotak-kotak (outline valid), splash loading navy, logo PNG di struk, pilih kertas 58/80/A4
 - **v1.4.2 (9)** — Siluet thin stroke 1.6px, fixed bottom nav tidak ikut scroll
 - **v1.4.1 (8)** — Anti-overlap: `paddingBottom 110+` semua screen, `StickyCartBar bottom:84`, TSC 0
 - **v1.4.0 (7)** — Pastel #7895B2 + Inter, P0 stok/FS/delete/kategori/crash-log
