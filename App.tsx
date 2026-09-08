@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text, Image, ActivityIndicator } from 'react-native'
+import { View, Text, Image, ActivityIndicator, BackHandler, Alert } from 'react-native'
 import { PaperProvider, Appbar } from 'react-native-paper'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
+import * as Font from 'expo-font'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 import * as SplashScreen from 'expo-splash-screen'
 import { initDatabase, seedDemoData } from './src/db/database'
@@ -27,22 +29,46 @@ export default function App() {
   const [dark, setDark] = useState(false)
   // bump agar semua layar re-render saat tema berubah (colors adalah let-binding)
   const [themeTick, setThemeTick] = useState(0)
+  const [produkModalOpen, setProdukModalOpen] = useState(false)
 
   useEffect(() => {
     SplashScreen.preventAutoHideAsync().catch(() => {})
-    initDatabase()
-    seedDemoData()
-    setDeviceCode(formatDeviceCode(getDeviceId()))
-    setActivated(isActivated())
-    const pref: ThemePref = getTheme()
-    applyTheme(pref)
-    setDark(pref === 'dark')
-    setReady(true)
+    ;(async () => {
+      try { await Font.loadAsync(MaterialCommunityIcons.font) } catch {}
+      initDatabase()
+      seedDemoData()
+      setDeviceCode(formatDeviceCode(getDeviceId()))
+      setActivated(isActivated())
+      const pref: ThemePref = getTheme()
+      applyTheme(pref)
+      setDark(pref === 'dark')
+      setReady(true)
+    })()
   }, [])
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {})
   }, [ready])
+
+  // Android back: kalau modal produk kebuka -> tutup, kalau bukan di Kasir -> balik ke Kasir, di Kasir -> tanya Keluar/Batal
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (produkModalOpen) {
+        setProdukModalOpen(false)
+        return true
+      }
+      if (tab !== 'kasir') {
+        setTab('kasir')
+        return true
+      }
+      Alert.alert('Keluar aplikasi?', 'Yakin mau keluar dari POS UMKM?', [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Keluar', style: 'destructive', onPress: () => BackHandler.exitApp() },
+      ])
+      return true
+    })
+    return () => sub.remove()
+  }, [tab, produkModalOpen])
 
   const toggleTheme = () => {
     const next: ThemePref = dark ? 'light' : 'dark'
@@ -97,7 +123,7 @@ export default function App() {
 
             <View style={{ flex: 1, backgroundColor: colors.bg }}>
               {tab === 'kasir' && <CashierScreen onSold={() => setRefreshKey((k) => k + 1)} />}
-              {tab === 'produk' && <ManageProductsScreen key={refreshKey} />}
+              {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} />}
               {tab === 'riwayat' && <HistoryScreen key={refreshKey} />}
               {tab === 'pengaturan' && (
                 <SettingsScreen
@@ -107,7 +133,7 @@ export default function App() {
               )}
             </View>
 
-            <FloatingBottomBar active={tab} onChange={setTab} />
+            <FloatingBottomBar active={tab} onChange={setTab} hidden={produkModalOpen} />
           </View>
         )}
       </SafeAreaProvider>

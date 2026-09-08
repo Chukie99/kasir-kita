@@ -45,6 +45,15 @@ yarn-error.*
 posumkm_crash.log
 C:*.log
 build_status.txt
-apk/pos-umkm-v1.4.0.apk
-apk/pos-umkm-v1.4.1.apk
-apk/pos-umkm-v1.4.2.apk
+# local v5 FIXED keep only 1.0.0
+apk/pos-umkm-v1.4.*.apk
+apk/pos-umkm-v1.4.3-FIXED*.apk
+apk/pos-umkm-v1.0.1.apk
+apk/pos-umkm-v1.2.0.apk
+apk/pos-umkm-v1.3.0.apk
+# private keygen — owner only, never commit
+keygen.mjs
+keygen-helper.html
+# local dev
+POS_UMKM_Content_Plan_30Hari.xlsx
+scr_*.png

@@ -7,6 +7,7 @@ export interface Product {
   stock: number | null
   image_uri: string | null
   category_name: string | null
+  category_id: number | null
 }
 
 export interface CartLine {
@@ -22,7 +23,7 @@ export interface CartLine {
 export function listProducts(): Product[] {
   return getDb()
     .getAllSync<Product>(
-      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name
+      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name, p.category_id
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
        WHERE p.is_active = 1 ORDER BY p.name`
     )
@@ -102,7 +103,7 @@ export function checkout(
 export function lowStockProducts(threshold = 5): Product[] {
   return getDb()
     .getAllSync<Product>(
-      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name
+      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name, p.category_id
        FROM products p LEFT JOIN categories c ON c.id = p.category_id
        WHERE p.is_active = 1 AND p.stock IS NOT NULL AND p.stock <= ?
        ORDER BY p.stock ASC`,

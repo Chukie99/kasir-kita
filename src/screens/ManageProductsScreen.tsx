@@ -12,12 +12,14 @@ const rupiah = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID')
 interface EditingState { id: number | null; name: string; price: string; stock: string; imageUri: string | null; categoryId: number | null }
 const EMPTY_EDIT: EditingState = { id: null, name: '', price: '', stock: '', imageUri: null, categoryId: null }
 
-export default function ManageProductsScreen() {
+export default function ManageProductsScreen({ onModalChange }: { onModalChange?: (open: boolean) => void }) {
   const [products, setProducts] = useState<ProductRow[]>(() => listAllProducts())
   const [categories, setCategories] = useState(() => listCategories())
   const [editing, setEditing] = useState<EditingState | null>(null)
   const [newCat, setNewCat] = useState('')
   const [showNewCat, setShowNewCat] = useState(false)
+
+  React.useEffect(() => { onModalChange?.(!!editing) }, [editing])
 
   const refresh = () => setProducts(listAllProducts())
 
@@ -150,7 +152,7 @@ export default function ManageProductsScreen() {
 
       <Modal visible={!!editing} onDismiss={() => setEditing(null)} contentContainerStyle={styles.modal}>
         {editing ? (
-          <>
+          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text variant="titleLarge" style={styles.modalTitle}>
               {editing.id === null ? 'Tambah Produk' : 'Edit Produk'}
             </Text>
@@ -209,7 +211,19 @@ export default function ManageProductsScreen() {
                   <Text style={[styles.chipTxt, editing.categoryId === c.id && styles.chipTxtActive]}>{c.name}</Text>
                 </Pressable>
               ))}
+              {!showNewCat ? (
+                <Pressable onPress={() => setShowNewCat(true)} style={[styles.chip, styles.chipDashed]}>
+                  <Text style={styles.chipTxt}>+ Kategori baru</Text>
+                </Pressable>
+              ) : null}
             </View>
+            {showNewCat ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 8 }}>
+                <TextInput value={newCat} onChangeText={setNewCat} placeholder="Nama kategori (cth: Sembako)" style={{ flex: 1, backgroundColor: colors.surface }} dense />
+                <Button mode="contained" compact onPress={() => { try { const id = addCategory(newCat); setCategories(listCategories()); setEditing(prev => prev ? { ...prev, categoryId: id } : prev); setNewCat(''); setShowNewCat(false); } catch (e) { Alert.alert('Gagal', e instanceof Error ? e.message : String(e)) } }}>Simpan</Button>
+                <Button compact onPress={() => { setShowNewCat(false); setNewCat('') }}>Batal</Button>
+              </View>
+            ) : null}
 
             <Button mode="contained" onPress={save} contentStyle={{ height: 52 }} style={{ marginTop: 20 }}>
               Simpan Produk
@@ -217,7 +231,7 @@ export default function ManageProductsScreen() {
             <Button mode="text" onPress={() => setEditing(null)} textColor={colors.textMuted}>
               Batal
             </Button>
-          </>
+          </ScrollView>
         ) : null}
       </Modal>
     </View>
@@ -261,6 +275,7 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: colors.border, borderRadius: 999,
     paddingHorizontal: 14, paddingVertical: 7, backgroundColor: colors.surface,
   },
+  chipDashed: { borderStyle: 'dashed', borderColor: colors.green },
   chipActive: { backgroundColor: colors.chipBg, borderColor: colors.green },
   chipTxt: { fontSize: 13, color: colors.text },
   chipTxtActive: { color: colors.greenDark, fontWeight: '700' },

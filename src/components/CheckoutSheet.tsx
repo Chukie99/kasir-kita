@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, StyleSheet, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable, ScrollView } from 'react-native'
 import { Text, Surface, Modal, Button, SegmentedButtons, TextInput } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import type { CartLine } from '../utils/pos'
@@ -44,6 +44,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
 
   return (
     <Modal visible={visible} onDismiss={() => { reset(); onClose() }} contentContainerStyle={styles.modal}>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
       <Text variant="titleLarge" style={styles.title}>Pembayaran</Text>
 
       <View style={styles.totalRow}>
@@ -79,12 +80,13 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
       {calculatedDiscount > 0 ? (
         <Text style={styles.discApplied}>Diskon −{rupiah(calculatedDiscount)}</Text>
       ) : null}
-      <Text style={styles.totalRow}>
-        <Text style={styles.totalLabel}>Total Dibayar</Text>
-        <Text style={styles.totalValue}>{rupiah(finalTotal)}</Text>
-      </Text>
+      <Surface elevation={0} style={styles.totalHighlight}>
+        <Text style={styles.totalLabelBold}>Total Bayar</Text>
+        <Text style={styles.totalValueBig}>{rupiah(finalTotal)}</Text>
+      </Surface>
 
       {/* Metode Bayar */}
+      <Text style={styles.label}>Metode Bayar</Text>
       <SegmentedButtons
         value={method}
         onValueChange={(v) => setMethod(v as 'cash' | 'qris')}
@@ -97,20 +99,19 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
 
       {/* Tunai: input + preset cepat */}
       {method === 'cash' ? (
-        <View style={{ marginTop: 12 }}>
+        <View style={{ marginTop: 4 }}>
           <Text style={styles.label}>Uang Diterima</Text>
           <TextInput
             value={paidStr}
             onChangeText={(v) => setPaidStr(v.replace(/\D/g, ''))}
             keyboardType="number-pad"
-            dense
             style={styles.paidInput}
-            placeholder="Ketik nominal uang..."
+            placeholder="Ketik nominal..."
             placeholderTextColor={colors.textMuted}
-            autoFocus
+            left={<TextInput.Affix text="Rp " />}
           />
-          {/* Preset cepat */}
           <View style={styles.presetRow}>
+            <Button mode="outlined" compact onPress={() => applyPreset(finalTotal)} style={{ flex: 1 }}>Uang Pas</Button>
             {PRESETS.map((amt) => (
               <Pressable
                 key={amt}
@@ -119,69 +120,74 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
                 android_ripple={{ color: colors.chipBg }}
               >
                 <Text style={[styles.presetTxt, paid === amt && styles.presetTxtActive]}>
-                  {amt >= 100000 ? `${amt / 1000}K` : `${amt / 1000}K`}
+                  {amt >= 1000 ? `${amt / 1000}k` : `${amt}`}
                 </Text>
               </Pressable>
             ))}
           </View>
           {paid > 0 ? (
             <Text style={[styles.paidText, !enough && styles.paidBad]}>
-              {rupiah(paid)} {enough ? (isExact ? '(pas)' : '') : '(kurang)'}
+              Dibayar {rupiah(paid)} {enough ? (isExact ? '(pas ✓)' : '') : '(kurang ✗)'}
             </Text>
           ) : null}
         </View>
       ) : null}
 
       {/* Hasil */}
-      <View style={styles.changeRow}>
+      <Surface style={[styles.changeBox, !enough && method==='cash' && styles.changeBoxBad]} elevation={0}>
         <Text style={styles.changeLabel}>{method === 'qris' ? 'Status' : 'Kembalian'}</Text>
         <Text style={[styles.changeValue, !enough && styles.paidBad]}>
-          {method === 'qris' ? 'Bayar penuh via QRIS' : enough ? rupiah(change) : 'Kurang ' + rupiah(finalTotal - paid)}
+          {method === 'qris' ? 'Lunas via QRIS ✓' : enough ? rupiah(change) : 'Kurang ' + rupiah(finalTotal - paid)}
         </Text>
-      </View>
+      </Surface>
 
-      {/* Tombol Aksi */}
       <Button
         mode="contained"
         disabled={!enough || cart.length === 0}
         onPress={() => { onConfirm(method, paid, calculatedDiscount); reset() }}
         contentStyle={styles.confirmBtn}
+        style={{ marginTop: 16 }}
       >
         Konfirmasi & Selesai
       </Button>
       <Button mode="text" onPress={() => { reset(); onClose() }} textColor={colors.textMuted} style={styles.cancelBtn}>
         Batal
       </Button>
+      </ScrollView>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  modal: { backgroundColor: colors.surface, margin: 20, borderRadius: 20, padding: 22 },
-  title: { fontWeight: '800', color: colors.text, marginBottom: 14 },
+  modal: { backgroundColor: colors.surface, margin: 16, borderRadius: 20, padding: 20, maxHeight: '88%' },
+  title: { fontWeight: '800', color: colors.text, marginBottom: 14, fontSize: 20 },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalLabel: { fontSize: 15, color: colors.textMuted },
-  totalValue: { fontSize: 26, fontWeight: '800', color: colors.text },
+  totalLabel: { fontSize: 14, color: colors.textMuted },
+  totalValue: { fontSize: 18, fontWeight: '700', color: colors.text },
+  totalHighlight: { backgroundColor: colors.chipBg, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, borderWidth: 1, borderColor: colors.border },
+  totalLabelBold: { fontSize: 13, fontWeight: '800', color: colors.textMuted, letterSpacing: 0.5 },
+  totalValueBig: { fontSize: 22, fontWeight: '900', color: colors.text },
   discRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginVertical: 8 },
   discBtn: { flex: 1 },
   discInput: { flex: 2, backgroundColor: colors.surface, height: 40 },
   discApplied: { fontSize: 13, fontWeight: '600', color: colors.terra, textAlign: 'center', marginBottom: 4 },
-  segmented: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: colors.textMuted, marginBottom: 6, marginTop: 12 },
-  paidInput: { backgroundColor: colors.surface, height: 52, borderRadius: 12, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 14, fontSize: 24, fontWeight: '700', color: colors.text },
-  presetRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  segmented: { marginBottom: 4 },
+  label: { fontSize: 12, fontWeight: '700', color: colors.textMuted, marginBottom: 6, marginTop: 12 },
+  paidInput: { backgroundColor: colors.surface, fontSize: 20, fontWeight: '800' },
+  presetRow: { flexDirection: 'row', gap: 8, marginTop: 10, alignItems: 'center' },
   presetBtn: {
     flex: 1, alignItems: 'center', paddingVertical: 10,
     borderRadius: 10, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.chipBg,
   },
-  presetBtnActive: { borderColor: colors.green, backgroundColor: colors.green + '15' },
-  presetTxt: { fontSize: 14, fontWeight: '800', color: colors.textMuted },
-  presetTxtActive: { color: colors.green },
-  paidText: { fontSize: 24, fontWeight: '800', color: colors.text, marginTop: 8 },
+  presetBtnActive: { borderColor: colors.green, backgroundColor: colors.chipBg },
+  presetTxt: { fontSize: 13, fontWeight: '800', color: colors.textMuted },
+  presetTxtActive: { color: colors.greenDark },
+  paidText: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 8 },
   paidBad: { color: colors.error },
-  changeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 16 },
-  changeLabel: { fontSize: 15, color: colors.textMuted },
-  changeValue: { fontSize: 24, fontWeight: '800', color: colors.green },
+  changeBox: { backgroundColor: colors.chipBg, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, borderWidth: 1, borderColor: colors.green },
+  changeBoxBad: { borderColor: colors.error },
+  changeLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
+  changeValue: { fontSize: 18, fontWeight: '900', color: colors.greenDark },
   confirmBtn: { height: 54 },
   cancelBtn: { marginTop: 4 },
 })

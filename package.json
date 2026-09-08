@@ -1,6 +1,6 @@
 {
   "name": "pos-umkm-android",
-  "version": "1.4.3",
+  "version": "1.0.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/vector-icons": "~15.0.3",
@@ -9,6 +9,7 @@
     "expo-device": "^57.0.1",
     "expo-document-picker": "^57.0.1",
     "expo-file-system": "^57.0.5",
+    "expo-font": "^57.0.3",
     "expo-image-picker": "~57.0.13",
     "expo-print": "~57.0.1",
     "expo-sharing": "^57.0.15",

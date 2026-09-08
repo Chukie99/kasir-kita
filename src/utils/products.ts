@@ -45,19 +45,9 @@ export function toggleProductActive(id: number, active: boolean): void {
   getDb().runSync('UPDATE products SET is_active = ? WHERE id = ?', [active ? 1 : 0, id])
 }
 
-/** Soft-hide is safer than delete (keeps transaction history readable). */
 export function deleteProduct(id: number): void {
-  const nameRow = getDb().getFirstSync<{ name: string }>('SELECT name FROM products WHERE id = ?', [id])
-  if (!nameRow) return
-  const used = getDb().getFirstSync<{ c: number }>(
-    'SELECT COUNT(*) AS c FROM transaction_items WHERE product_name = ?',
-    [nameRow.name]
-  )
-  if ((used?.c ?? 0) === 0) {
-    getDb().runSync('DELETE FROM products WHERE id = ?', [id])
-  } else {
-    toggleProductActive(id, false)
-  }
+  // Hard delete — riwayat tetap aman karena transaction_items simpan product_name (string), bukan FK
+  getDb().runSync('DELETE FROM products WHERE id = ?', [id])
 }
 
 export function addCategory(name: string): number {

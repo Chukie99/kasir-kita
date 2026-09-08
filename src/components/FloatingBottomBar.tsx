@@ -11,14 +11,15 @@ interface Props {
   onChange: (tab: Tab) => void
 }
 
-const ITEMS: { id: Tab; label: string; icon: string }[] = [
+const ITEMS: { id: Tab; label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }[] = [
   { id: 'kasir', label: 'Kasir', icon: 'storefront-outline' },
   { id: 'produk', label: 'Produk', icon: 'cube-outline' },
   { id: 'riwayat', label: 'Laporan', icon: 'chart-bar' },
   { id: 'pengaturan', label: 'Lainnya', icon: 'dots-horizontal' },
 ]
 
-export default function FloatingBottomBar({ active, onChange }: Props) {
+export default function FloatingBottomBar({ active, onChange, hidden }: Props & { hidden?: boolean }) {
+  if (hidden) return null as any
   return (
     <View style={[styles.wrap, Platform.OS === 'ios' && { paddingBottom: 12 }]}>
       <View style={styles.bar}>
@@ -36,7 +37,7 @@ export default function FloatingBottomBar({ active, onChange }: Props) {
               ]}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <MaterialCommunityIcons name={item.icon as any} size={20} color={isActive ? '#FFF' : colors.textMuted} />
+                <MaterialCommunityIcons name={item.icon} size={20} color={isActive ? '#FFF' : colors.textMuted} />
               </View>
               <Text style={[styles.label, isActive && styles.labelActive]}>{item.label}</Text>
             </Pressable>
