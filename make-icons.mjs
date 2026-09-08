@@ -8,7 +8,7 @@ import fs from 'node:fs'
 const TEAL = [120, 149, 178]   // #7895B2 — steel blue (primary app)
 const TEAL_DARK = [15, 36, 64]   // #0F2440 — navy splash
 const WHITE = [255, 255, 255]
-const YELLOW = [232, 223, 202]   // #E8DFCA — sand (awning stripe)
+const YELLOW = [255, 255, 255]   // putih solid biar kontras di navy
 
 function makeIcon(size, { foregroundOnly = false, withRounded = true } = {}) {
   const png = new PNG({ width: size, height: size })

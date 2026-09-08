@@ -55,7 +55,9 @@ export default function App() {
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: '#0F2440', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, borderRadius: 22, marginBottom: 20 }} resizeMode="contain" />
+        <View style={{ width: 120, height: 120, borderRadius: 28, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 }}>
+          <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, borderRadius: 18 }} resizeMode="contain" />
+        </View>
         <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' }}>POS UMKM</Text>
         <Text style={{ color: '#AEBDCA', fontSize: 12, marginTop: 6, letterSpacing: 2, textAlign: 'center' }}>KASIR OFFLINE UMKM</Text>
         <View style={{ marginTop: 28, alignItems: 'center' }}>

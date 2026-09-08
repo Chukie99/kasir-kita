@@ -3,6 +3,7 @@
   "version": "1.4.3",
   "main": "index.ts",
   "dependencies": {
+    "@expo/vector-icons": "~15.0.3",
     "expo": "~57.0.16",
     "expo-clipboard": "~57.0.1",
     "expo-device": "^57.0.1",

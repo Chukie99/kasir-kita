@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, StyleSheet, Pressable, Platform } from 'react-native'
-import { Text, Icon } from 'react-native-paper'
+import { Text } from 'react-native-paper'
+import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { colors } from '../theme/theme'
 
 export type Tab = 'kasir' | 'produk' | 'riwayat' | 'pengaturan'
@@ -35,7 +36,7 @@ export default function FloatingBottomBar({ active, onChange }: Props) {
               ]}
             >
               <View style={[styles.iconWrap, isActive && styles.iconWrapActive]}>
-                <Icon source={item.icon} size={18} color={isActive ? '#FFF' : colors.textMuted} />
+                <MaterialCommunityIcons name={item.icon as any} size={20} color={isActive ? '#FFF' : colors.textMuted} />
               </View>
               <Text style={[styles.label, isActive && styles.labelActive]}>{item.label}</Text>
             </Pressable>
