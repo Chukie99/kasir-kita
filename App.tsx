@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { View, Text } from 'react-native'
+import { View, Text, Image, ActivityIndicator } from 'react-native'
 import { PaperProvider, Appbar } from 'react-native-paper'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
@@ -54,13 +54,13 @@ export default function App() {
 
   if (!ready) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#0F2440', alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{ width: 72, height: 72, borderRadius: 18, backgroundColor: '#7895B2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-          <View style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: '#fff', opacity: 0.95 }} />
-        </View>
-        <View style={{ alignItems: 'center' }}>
-          <View><Text style={{ color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: 1 }}>POS UMKM</Text></View>
-          <View><Text style={{ color: '#AEBDCA', fontSize: 11, marginTop: 4 }}>Memuat kasir...</Text></View>
+      <View style={{ flex: 1, backgroundColor: '#0F2440', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, borderRadius: 22, marginBottom: 20 }} resizeMode="contain" />
+        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' }}>POS UMKM</Text>
+        <Text style={{ color: '#AEBDCA', fontSize: 12, marginTop: 6, letterSpacing: 2, textAlign: 'center' }}>KASIR OFFLINE UMKM</Text>
+        <View style={{ marginTop: 28, alignItems: 'center' }}>
+          <ActivityIndicator size="small" color="#7895B2" />
+          <Text style={{ color: '#7895B2', fontSize: 11, marginTop: 10, letterSpacing: 0.5 }}>Memuat kasir...</Text>
         </View>
       </View>
     )

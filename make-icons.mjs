@@ -5,10 +5,10 @@
 import { PNG } from 'pngjs'
 import fs from 'node:fs'
 
-const TEAL = [36, 157, 143]      // #249D8F
-const TEAL_DARK = [23, 118, 107] // #17766B
+const TEAL = [120, 149, 178]   // #7895B2 — steel blue (primary app)
+const TEAL_DARK = [15, 36, 64]   // #0F2440 — navy splash
 const WHITE = [255, 255, 255]
-const YELLOW = [233, 196, 106]   // #E9C46A
+const YELLOW = [232, 223, 202]   // #E8DFCA — sand (awning stripe)
 
 function makeIcon(size, { foregroundOnly = false, withRounded = true } = {}) {
   const png = new PNG({ width: size, height: size })
