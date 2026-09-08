@@ -51,9 +51,9 @@ apk/pos-umkm-v1.4.3-FIXED*.apk
 apk/pos-umkm-v1.0.1.apk
 apk/pos-umkm-v1.2.0.apk
 apk/pos-umkm-v1.3.0.apk
-# private keygen — owner only, never commit
+# private keygen — owner only, never commit secret
 keygen.mjs
-keygen-helper.html
+# keygen-helper.html INCLUDED in v1.0.0 release (owner backup di GitHub)
 # local dev
 POS_UMKM_Content_Plan_30Hari.xlsx
 scr_*.png

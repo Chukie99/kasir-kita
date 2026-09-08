@@ -1,4 +1,4 @@
-// Generate POS UMKM app icons (teal bg + white storefront/basket motif) as PNG.
+// Generate Kasir Kita app icons (teal bg + white storefront/basket motif) as PNG.
 // Run: node make-icons.mjs
 // Output: assets/icon.png (1024), android-icon-foreground.png (1024, icon-only centered),
 //         splash-icon.png (512), favicon.png (128)

@@ -1,4 +1,4 @@
-# POS UMKM — Kasir Offline untuk Warung, Kedai & Kafe
+# Kasir Kita — Kasir Offline untuk Warung, Kedai & Kafe
 
 **v1.4.3 (build 10)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
 
@@ -46,13 +46,13 @@
 - **Pastel ColorHunt** #F5EFE6 (bg) #E8DFCA (chip) #AEBDCA (border) #7895B2 (action) #0F2440 (navy) — lembut di mata kasir seharian
 - **Siluet outline thin stroke** bottom nav: `storefront-outline` / `cube-outline` / `chart-bar` / `dots-horizontal` (bukan filled, premium minimalis)
 - **Fixed bottom nav** `position: absolute bottom:20` — **tidak ikut scroll**, konten `paddingBottom:110+` biar tidak ketutup (fix v1.4.1)
-- **Splash screen** navy #0F2440 + loading `POS UMKM — Memuat kasir...` via `expo-splash-screen`
+- **Splash screen** navy #0F2440 + loading `Kasir Kita — Memuat kasir...` via `expo-splash-screen`
 
 ---
 
 ## 📸 Screenshot
 
-Mockup 5 layar ada di [`POS_UMKM_Mockup_v1.5.html`](POS_UMKM_Mockup_v1.5.html) (Kasir 1-tap + Produk Favorit + Laporan Reprint + Lainnya Backup + Scan Barcode) — buka di browser, coba tap/search/kategori/scan.
+Mockup 5 layar ada di [`KASIR_KITA_Mockup_v1.5.html`](KASIR_KITA_Mockup_v1.5.html) (Kasir 1-tap + Produk Favorit + Laporan Reprint + Lainnya Backup + Scan Barcode) — buka di browser, coba tap/search/kategori/scan.
 
 > Untuk Lynk.id: screenshot dari HP + mockup ini.
 
@@ -80,7 +80,7 @@ eas build -p android --profile production # → .aab (Play Store)
 | `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
 | `production` | `.aab` | Upload Google Play |
 
-APK history: `apk/pos-umkm-v1.0.0.apk` … `v1.4.3.apk` (74M each) — lihat [Releases](https://github.com/Chukie99/pos-umkm-android/releases)
+APK history: `apk/kasir-kita-v1.0.0.apk` … `v1.4.3.apk` (74M each) — lihat [Releases](https://github.com/Chukie99/kasir-kita-android/releases)
 
 ## 🔑 Key Generator (untuk penjual)
 
@@ -126,7 +126,7 @@ keygen.mjs / keygen-helper.html  # owner-only, jangan publish secret baru
 
 - **58mm** = 48mm content, 11px monospace — printer bluetooth mini (paling umum, 2–3 inch)
 - **80mm** = 72mm — thermal lebar lebih lega
-- **A4** = 170mm, 12px — PDF/email, header “Struk Penjualan — dicetak dari POS UMKM” + logo 120px
+- **A4** = 170mm, 12px — PDF/email, header “Struk Penjualan — dicetak dari Kasir Kita” + logo 120px
 - Ganti di **Pengaturan → Ukuran Kertas Struk** → `buildReceiptHtml(txId, size)` auto ganti `@page` + `width` + `font` + `logo size`. Ada badge `Pratinjau: 58mm — pilih 58mm untuk thermal`.
 
 Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px thermal / 120px A4>` di atas struk.
@@ -148,8 +148,8 @@ Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px therm
 
 ## 📄 Dokumen
 
-- `PRD_POS_UMKM_v1.5.md` + `POS_UMKM_Mockup_v1.5.html` — PRD & mockup easy-use 5 layar
-- `Riset_Saingan_POS_UMKM.xlsx/.pdf` — 14 saingan (CocoPOS, Kasir Pintar, Moka 299k/bln, Olsera dll) + strategi Lynk.id 49k→149k
+- `PRD_KASIR_KITA_v1.5.md` + `KASIR_KITA_Mockup_v1.5.html` — PRD & mockup easy-use 5 layar
+- `Riset_Saingan_KASIR_KITA.xlsx/.pdf` — 14 saingan (CocoPOS, Kasir Pintar, Moka 299k/bln, Olsera dll) + strategi Lynk.id 49k→149k
 
 ## 📜 Lisensi
 

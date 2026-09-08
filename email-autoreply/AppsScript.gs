@@ -1,5 +1,5 @@
 /**
- * POS UMKM — Auto-Reply Lisensi via Email (Google Apps Script)
+ * Kasir Kita — Auto-Reply Lisensi via Email (Google Apps Script)
  * ============================================================
  * Cara kerja:
  *  1. Customer kirim email ke alamat Gmail lu dengan subject/body
@@ -13,7 +13,7 @@
  *  2. Hapus isi code.gs, paste seluruh file ini
  *  3. Ganti APP_LICENSE_SECRET di bawah — HARUS SAMA persis dengan
  *     yang ada di src/license/license.ts dan keygen.mjs
- *  4. Save (ikon disket) → beri nama "POS UMKM License Bot"
+ *  4. Save (ikon disket) → beri nama "Kasir Kita License Bot"
  *
  * AKTIFKAN:
  *  - Klik ⏰ Triggers (ikon jam) → Add Trigger
@@ -46,18 +46,18 @@ function checkInbox() {
     const key = generateActivationKey(deviceId);
 
     last.reply(
-      'Kode Aktivasi POS UMKM Anda',
+      'Kode Aktivasi Kasir Kita Anda',
       'Halo!\n\n' +
-      'Terima kasih telah membeli POS UMKM 🎉\n\n' +
+      'Terima kasih telah membeli Kasir Kita 🎉\n\n' +
       'Device ID Anda : ' + formatCode(deviceId) + '\n' +
       'Kode Aktivasi  : ' + key + '\n\n' +
       'Cara aktivasi:\n' +
-      '1. Buka aplikasi POS UMKM\n' +
+      '1. Buka aplikasi Kasir Kita\n' +
       '2. Masukkan Kode Aktivasi di atas pada layar aktivasi\n' +
       '3. Aplikasi langsung terbuka — aktif permanen di HP ini\n\n' +
       'Catatan: Kode hanya berlaku untuk Device ID ' + formatCode(deviceId) + '.\n' +
       'Ganti HP? Kirim Device ID baru untuk kode baru.\n\n' +
-      'Salam,\nTim POS UMKM'
+      'Salam,\nTim Kasir Kita'
     );
 
     thread.addLabel(label);

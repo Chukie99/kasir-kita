@@ -61,7 +61,7 @@ export default function App() {
         setTab('kasir')
         return true
       }
-      Alert.alert('Keluar aplikasi?', 'Yakin mau keluar dari POS UMKM?', [
+      Alert.alert('Keluar aplikasi?', 'Yakin mau keluar dari Kasir Kita?', [
         { text: 'Batal', style: 'cancel' },
         { text: 'Keluar', style: 'destructive', onPress: () => BackHandler.exitApp() },
       ])
@@ -84,7 +84,7 @@ export default function App() {
         <View style={{ width: 120, height: 120, borderRadius: 28, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 }}>
           <Image source={require('./assets/splash-icon.png')} style={{ width: 96, height: 96, borderRadius: 18 }} resizeMode="contain" />
         </View>
-        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' }}>POS UMKM</Text>
+        <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900', letterSpacing: 1.5, textAlign: 'center' }}>Kasir Kita</Text>
         <Text style={{ color: '#AEBDCA', fontSize: 12, marginTop: 6, letterSpacing: 2, textAlign: 'center' }}>KASIR OFFLINE UMKM</Text>
         <View style={{ marginTop: 28, alignItems: 'center' }}>
           <ActivityIndicator size="small" color="#7895B2" />
@@ -112,7 +112,7 @@ export default function App() {
             <Appbar.Header elevated={false} style={{ backgroundColor: colors.surface }}>
               <Appbar.Content
                 title={
-                  tab === 'kasir' ? `${getSetting('storeName', 'POS UMKM')} — Kasir`
+                  tab === 'kasir' ? `${getSetting('storeName', 'Kasir Kita')} — Kasir`
                   : tab === 'produk' ? 'Kelola Produk & Menu'
                   : tab === 'pengaturan' ? 'Pengaturan & Backup'
                   : 'Laporan & Riwayat'

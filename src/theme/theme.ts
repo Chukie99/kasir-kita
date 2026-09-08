@@ -1,7 +1,7 @@
 import { MD3LightTheme, configureFonts } from 'react-native-paper'
 
 /**
- * POS UMKM — Palet Pastel Profesional v1.4
+ * Kasir Kita — Palet Pastel Profesional v1.4
  * Sumber: ColorHunt Pastel — https://colorhunt.co/palette/f5efe6e8dfcaaebdca7895b2
  *   #F5EFE6 — warm cream (bg utama, lembut di mata kasir seharian)
  *   #E8DFCA — beige sand (chip, card highlight)

@@ -22,7 +22,7 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
 
   return (
     <View style={styles.root}>
-      <Text style={styles.brand}>POS UMKM</Text>
+      <Text style={styles.brand}>Kasir Kita</Text>
       <Text style={styles.tagline}>Kasir Offline untuk Warung & Kedai</Text>
 
       <Surface style={styles.card} elevation={0}>
@@ -45,7 +45,7 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
 
         <Pressable
           onPress={() => {
-            const msg = encodeURIComponent(`Halo, saya mau minta Kode Aktivasi POS UMKM.\nDevice ID saya: ${deviceCode}`)
+            const msg = encodeURIComponent(`Halo, saya mau minta Kode Aktivasi Kasir Kita.\nDevice ID saya: ${deviceCode}`)
             Linking.openURL(`https://wa.me/${VENDOR_WA}?text=${msg}`)
           }}
           android_ripple={{ color: 'rgba(255,255,255,0.2)' }}

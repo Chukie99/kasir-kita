@@ -1,5 +1,5 @@
 /**
- * POS UMKM — Sistem Penjualan & Aktivasi Otomatis
+ * Kasir Kita — Sistem Penjualan & Aktivasi Otomatis
  * ================================================
  * Satu script ini menangani SEMUA:
  *   1. Customer beli via Lynk.id → dapat link form pendaftaran
@@ -18,19 +18,19 @@
  * SETUP (±10 MENIT):
  *
  * A. BUAT GOOGLE SPREADSHEET DATABASE
- *    1. Buka sheets.new → beri nama "POS UMKM - Database"
+ *    1. Buka sheets.new → beri nama "Kasir Kita - Database"
  *    2. Di sheet pertama (Sheet1), bikin header baris 1:
  *       A1=Tanggal | B1=Nama | C1=Email | D1=Device ID |
  *       E1=Kode Aktivasi | F1=Status Bayar | G1=Catatan
  *
  * B. BUAT FORM PENDAFTARAN
  *    1. Di spreadsheet itu: Tools → Create a new form
- *    2. Judul: "Aktivasi POS UMKM"
+ *    2. Judul: "Aktivasi Kasir Kita"
  *    3. Pertanyaan:
  *       - Nama Lengkap (short answer, required)
  *       - Email (short answer, required)
  *       - Device ID dari aplikasi (short answer, required,
- *         description: "Buka app POS UMKM → salin kode di layar aktivasi")
+ *         description: "Buka app Kasir Kita → salin kode di layar aktivasi")
  *    4. Responses tab → link ke spreadsheet yang sama
  *    5. Ambil URL form (Send button) → taruh di Lynk.id sebagai
  *       "Form Aktivasi" setelah pembayaran sukses
@@ -87,7 +87,7 @@ function processNewOrders(e) {
   try {
     MailApp.sendEmail({
       to: email,
-      subject: '🎉 Kode Aktivasi POS UMKM Anda — ' + formatCode(deviceId),
+      subject: '🎉 Kode Aktivasi Kasir Kita Anda — ' + formatCode(deviceId),
       htmlBody: buildEmailHtml(nama, deviceId, key),
     });
     sheet.getRange(row, 7).setValue('Email terkirim ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd/MM HH:mm'));
@@ -118,7 +118,7 @@ function resendPending() {
       try {
         MailApp.sendEmail({
           to: email,
-          subject: '🎉 Kode Aktivasi POS UMKM Anda — ' + formatCode(deviceId),
+          subject: '🎉 Kode Aktivasi Kasir Kita Anda — ' + formatCode(deviceId),
           htmlBody: buildEmailHtml(nama, deviceId, key),
         });
         sheet.getRange(r + 1, 6).setValue('✅ Terkirim (ulang)');
@@ -173,7 +173,7 @@ function buildEmailHtml(nama, deviceId, key) {
   return (
     '<div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;color:#1C1B1F">' +
     '<div style="background:#2E7D32;border-radius:12px 12px 0 0;padding:20px;text-align:center">' +
-    '<h1 style="color:#fff;margin:0;font-size:22px">POS UMKM</h1>' +
+    '<h1 style="color:#fff;margin:0;font-size:22px">Kasir Kita</h1>' +
     '<p style="color:#C8E6C9;margin:4px 0 0">Kasir Offline untuk Warung & Kedai</p></div>' +
     '<div style="border:1px solid #DEDEDE;border-top:none;padding:24px;border-radius:0 0 12px 12px">' +
     '<p>Halo <b>' + (nama || 'Sobat UMKM') + '</b>, terima kasih sudah membeli! 🎉</p>' +
@@ -185,7 +185,7 @@ function buildEmailHtml(nama, deviceId, key) {
     '<td style="padding:8px;font-family:monospace;font-size:18px;font-weight:bold;color:#2E7D32">' + key + '</td></tr>' +
     '</table>' +
     '<p><b>Cara aktivasi:</b><br>' +
-    '1️⃣ Buka aplikasi POS UMKM<br>' +
+    '1️⃣ Buka aplikasi Kasir Kita<br>' +
     '2️⃣ Salin Kode Aktivasi di atas ke layar aktivasi<br>' +
     '3️⃣ Selesai! Aktif permanen di HP ini ✅</p>' +
     '<p style="font-size:13px;color:#5F5E58">Kode hanya berlaku untuk Device ID ' + formatCode(deviceId) +

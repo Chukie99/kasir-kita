@@ -17,7 +17,7 @@ export function buildReceiptText(txId: number): string {
     [txId]
   )
 
-  const storeName = getSetting('storeName', 'POS UMKM')
+  const storeName = getSetting('storeName', 'Kasir Kita')
   const line = '-'.repeat(32)
   const rows = items.map((i) => {
     const mods = i.modifiers_label ? `\n  + ${i.modifiers_label}` : ''
@@ -62,7 +62,7 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
     'SELECT product_name, qty, unit_price, modifiers_label FROM transaction_items WHERE transaction_id = ?',
     [txId]
   )
-  const storeName = getSetting('storeName', 'POS UMKM')
+  const storeName = getSetting('storeName', 'Kasir Kita')
   const logoUri = getSetting('storeLogoUri', '')
   const size: PaperSize = paperSize ?? getPaperSize()
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
@@ -94,7 +94,7 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
 </style></head><body>
 ${logoHtml}
 <h2>${esc(storeName.toUpperCase())}</h2>
-${size === 'A4' ? '<div class="store-sub">Struk Penjualan — dicetak dari POS UMKM</div>' : ''}
+${size === 'A4' ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</div>' : ''}
 <div class="meta">No: ${tx.invoice}<br/>Tgl: ${tx.created_at.slice(0, 16)} &bull; Kertas: ${size}</div>
 <div class="line"></div>
 ${rows}

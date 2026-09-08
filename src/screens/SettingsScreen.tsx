@@ -245,7 +245,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="POS UMKM v1.4.2" description="Kasir offline untuk warung & kedai — thermal 58mm/80mm + A4 PDF" />
+        <List.Item title="Kasir Kita v1.4.2" description="Kasir offline untuk warung & kedai — thermal 58mm/80mm + A4 PDF" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
       </Surface>
 

@@ -1,6 +1,6 @@
-# Sistem Penjualan & Aktivasi Otomatis — POS UMKM
+# Sistem Penjualan & Aktivasi Otomatis — Kasir Kita
 
-Dua file di folder ini adalah sistem penjualan & aktivasi otomatis untuk POS UMKM.
+Dua file di folder ini adalah sistem penjualan & aktivasi otomatis untuk Kasir Kita.
 
 ## Pilih salah satu (atau pakai dua-duanya):
 

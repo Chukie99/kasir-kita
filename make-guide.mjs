@@ -1,4 +1,4 @@
-// Generate PDF panduan penggunaan POS UMKM v1.2.0 (Bahasa Indonesia)
+// Generate PDF panduan penggunaan Kasir Kita v1.2.0 (Bahasa Indonesia)
 // Run: node make-guide.mjs
 import PDFDocument from 'pdfkit'
 import fs from 'node:fs'
@@ -16,12 +16,12 @@ const step = (n, title) => doc.font('Helvetica-Bold').fontSize(11).fillColor(TEA
 
 // ===== COVER =====
 doc.rect(0, 0, 612, 240).fill(TEAL)
-doc.font('Helvetica-Bold').fontSize(34).fillColor('#FFFFFF').text('POS UMKM', 55, 90)
+doc.font('Helvetica-Bold').fontSize(34).fillColor('#FFFFFF').text('Kasir Kita', 55, 90)
 doc.fontSize(14).fillColor('#DFF3F0').text('Panduan Penggunaan Lengkap — v1.2.0', 55, 135)
 doc.fontSize(10).fillColor('#DFF3F0').text('Kasir Offline untuk Warung & Kedai', 55, 158)
 doc.moveDown(14)
 h1('Selamat Datang!')
-p('POS UMKM adalah aplikasi kasir yang bekerja 100% offline di HP Android Anda. Tidak perlu internet untuk melayani pembeli — cukup buka aplikasinya dan mulai berjualan.')
+p('Kasir Kita adalah aplikasi kasir yang bekerja 100% offline di HP Android Anda. Tidak perlu internet untuk melayani pembeli — cukup buka aplikasinya dan mulai berjualan.')
 p('Panduan ini menjelaskan semua fitur: aktivasi, kelola produk & stok, transaksi kasir, laporan penjualan, hingga cetak struk.')
 
 doc.addPage()
@@ -29,7 +29,7 @@ doc.addPage()
 // ===== 1. AKTIVASI =====
 h1('1. Aktivasi Aplikasi')
 p('Saat pertama dibuka, aplikasi terkunci dan menampilkan Kode Perangkat (Device ID). Aktivasi dilakukan sekali saja per HP.')
-step(1, 'Buka aplikasi POS UMKM')
+step(1, 'Buka aplikasi Kasir Kita')
 p('   Catat Kode Perangkat yang tampil di layar (contoh: QKQ1-AB2C-D3EF).')
 step(2, 'Klik tombol hijau "MINTA KODE VIA WHATSAPP"')
 p('   WhatsApp akan terbuka dengan pesan otomatis berisi kode perangkat Anda. Tekan kirim ke penjual.')
@@ -118,7 +118,7 @@ doc.moveDown(1)
 doc.rect(55, doc.y, 500, 70).fill('#FDF0D5')
 doc.font('Helvetica-Bold').fontSize(11).fillColor(DARK).text('Butuh bantuan?', 70, doc.y - 55)
 doc.font('Helvetica').fontSize(10).fillColor(DARK)
-   .text('Hubungi kami via WhatsApp: 0822-6140-7123\nSenang membantu! Terima kasih sudah memakai POS UMKM. 🙏', 70, doc.y + 2)
+   .text('Hubungi kami via WhatsApp: 0822-6140-7123\nSenang membantu! Terima kasih sudah memakai Kasir Kita. 🙏', 70, doc.y + 2)
 
 doc.end()
 console.log('PDF dibuat: Panduan-POS-UMKM.pdf')
