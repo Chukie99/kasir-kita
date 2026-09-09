@@ -10,7 +10,7 @@ import * as SplashScreen from 'expo-splash-screen'
 import { initDatabase, seedDemoData } from './src/db/database'
 import { theme, colors, applyTheme } from './src/theme/theme'
 import { getTheme, getSetting, setSetting, type ThemePref } from './src/utils/settings'
-import { getDeviceId, formatDeviceCode, isActivated, activate } from './src/license/license'
+import { getDeviceId, formatDeviceCode, isActivated, verifyToken } from './src/license/license'
 import ActivationGate from './src/screens/ActivationGate'
 import CashierScreen from './src/screens/CashierScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
@@ -101,10 +101,10 @@ export default function App() {
         {!activated ? (
           <ActivationGate
             deviceCode={deviceCode}
-            onActivate={(key) => {
-              const ok = activate(key)
-              if (ok) setActivated(true)
-              return ok
+            onActivate={(token) => {
+              const v = verifyToken(token)
+              if (v.ok) setActivated(true)
+              return v.ok
             }}
           />
         ) : (

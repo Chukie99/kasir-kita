@@ -1,23 +1,25 @@
 import React from 'react'
-import { View, StyleSheet, TextInput, Pressable, Linking } from 'react-native'
+import { View, StyleSheet, TextInput, Pressable, Linking, ActivityIndicator } from 'react-native'
 import { Text, Surface } from 'react-native-paper'
 import { colors } from '../theme/theme'
-import { VENDOR_WA } from '../license/license'
+import { VENDOR_WA, activateOnline } from '../license/license'
 import * as Clipboard from 'expo-clipboard'
 
-/**
- * High-contrast license gate.
- * Shows the device code so the customer can send it to the vendor,
- * and locks the app until a valid activation key is entered.
- */
-export default function ActivationGate({ deviceCode, onActivate }: { deviceCode: string; onActivate: (key: string) => boolean }) {
-  const [key, setKey] = React.useState('')
+export default function ActivationGate({ deviceCode, onActivate }: { deviceCode: string; onActivate: (token: string) => boolean }) {
+  const [license, setLicense] = React.useState('')
   const [error, setError] = React.useState('')
+  const [loading, setLoading] = React.useState(false)
   const inputRef = React.useRef<TextInput>(null)
 
-  const submit = () => {
-    if (!key.trim()) { setError('Masukkan kode aktivasi'); return }
-    if (!onActivate(key)) setError('Kode aktivasi tidak valid untuk perangkat ini')
+  const submit = async () => {
+    const v = license.trim().toUpperCase()
+    if (!v) { setError('Masukkan kode lisensi (KITA-XXXX-XXXX-XXXX)'); return }
+    setLoading(true); setError('')
+    const r = await activateOnline(v)
+    setLoading(false)
+    if (!r.ok) { setError(r.error || 'Gagal aktivasi'); return }
+    // verify + persist happened inside activateOnline, now notify App
+    if (r.token) onActivate(r.token)
   }
 
   return (
@@ -40,27 +42,28 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
           </Pressable>
         </Surface>
         <Text style={styles.helpText}>
-          Kirim kode di atas ke penjual untuk mendapatkan Kode Aktivasi Anda.
+          Kode lisensi dikirim ke email setelah bayar di Lynk.id. Butuh bantuan? Chat admin.
         </Text>
 
         <Pressable
           onPress={() => {
-            const msg = encodeURIComponent(`Halo, saya mau minta Kode Aktivasi Kasir Kita.\nDevice ID saya: ${deviceCode}`)
+            const msg = encodeURIComponent(`Halo admin Kasir Kita, saya mau aktivasi.\nDevice ID: ${deviceCode}\nKode Lisensi: ${license.trim() || '(belum isi)'}`)
             Linking.openURL(`https://wa.me/${VENDOR_WA}?text=${msg}`)
           }}
           android_ripple={{ color: 'rgba(255,255,255,0.2)' }}
           style={styles.waBtn}
         >
-          <Text style={styles.waBtnText}>💬 MINTA KODE VIA WHATSAPP</Text>
+          <Text style={styles.waBtnText}>💬 Chat Admin via WhatsApp</Text>
         </Pressable>
 
-        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>Kode Aktivasi</Text>
+        <Text style={[styles.sectionLabel, { marginTop: 22 }]}>Kode Lisensi</Text>
+        <Text style={styles.hint}>Format: KITA-XXXX-XXXX-XXXX (dari email/webhook)</Text>
         <TextInput
           ref={inputRef}
-          value={key}
-          onChangeText={(v) => { setKey(v.toUpperCase()); setError('') }}
+          value={license}
+          onChangeText={(v) => { setLicense(v.toUpperCase()); setError('') }}
           onSubmitEditing={submit}
-          placeholder="XXXX-XXXX-XXXX-XXXX"
+          placeholder="KITA-XXXX-XXXX-XXXX"
           placeholderTextColor="#C9BFA8"
           autoCapitalize="characters"
           autoCorrect={false}
@@ -68,21 +71,23 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
           keyboardType="default"
           returnKeyType="done"
           maxLength={19}
+          editable={!loading}
           style={[styles.inputBox, error ? styles.inputError : null]}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable onPress={submit} android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={styles.activateBtn}>
-          <Text style={styles.activateBtnText}>AKTIVASI</Text>
+        <Pressable onPress={submit} disabled={loading} android_ripple={{ color: 'rgba(255,255,255,0.2)' }} style={[styles.activateBtn, loading ? { opacity: 0.7 } : null]}>
+          {loading ? <ActivityIndicator color="#FFF" /> : <Text style={styles.activateBtnText}>AKTIVASI ONLINE</Text>}
         </Pressable>
+        {!loading ? <Text style={styles.onlineHint}>Butuh internet sekali saat aktivasi. Setelah itu offline 100%.</Text> : null}
 
         <Pressable onPress={() => inputRef.current?.focus()} style={styles.focusHelper}>
           <Text style={styles.focusHelperText}>Ketuk di sini kalau keyboard tidak muncul</Text>
         </Pressable>
       </Surface>
 
-      <Text style={styles.footer}>Aplikasi terkunci sampai aktivasi berhasil.</Text>
+      <Text style={styles.footer}>1 lisensi = 1 HP. Lisensi terikat ke Device ID.</Text>
     </View>
   )
 }
@@ -100,6 +105,7 @@ const styles = StyleSheet.create({
   helpText: { fontSize: 13, color: colors.textMuted, marginTop: 10, lineHeight: 18 },
   waBtn: { backgroundColor: '#25D366', borderRadius: 12, height: 50, alignItems: 'center', justifyContent: 'center', marginTop: 14 },
   waBtnText: { color: '#FFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 },
+  hint: { fontSize: 11, color: '#AEBDCA', marginBottom: 6 },
   inputBox: {
     backgroundColor: colors.chipBg,
     borderRadius: 12,
@@ -109,7 +115,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     color: colors.text,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800',
     letterSpacing: 2,
     textAlign: 'center',
@@ -118,6 +124,7 @@ const styles = StyleSheet.create({
   error: { color: colors.error, fontWeight: '600', marginTop: 10 },
   activateBtn: { backgroundColor: colors.green, borderRadius: 12, height: 56, alignItems: 'center', justifyContent: 'center', marginTop: 18 },
   activateBtnText: { color: '#FFF', fontWeight: '800', fontSize: 17, letterSpacing: 1.5 },
+  onlineHint: { fontSize: 11, color: '#AEBDCA', textAlign: 'center', marginTop: 8 },
   focusHelper: { alignItems: 'center', marginTop: 14 },
   focusHelperText: { fontSize: 11, color: '#C9BFA8' },
   footer: { marginTop: 20, fontSize: 12, color: colors.textMuted },
