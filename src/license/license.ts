@@ -7,6 +7,7 @@ export const VENDOR_WA = '6282261407123'
 // Ed25519 public key (32 bytes base64) — private cuma di Supabase Edge Functions
 export const LICENSE_PUBLIC_KEY_B64 = 'iBRbEboEKXtjRgSV9bmYF/Mntc4mkQXewfMjO3SC0yg='
 export const SUPABASE_ACTIVATE_URL = 'https://cdgnqhdmsnrlzylgoecz.supabase.co/functions/v1/activate'
+export const SUPABASE_GET_LICENSE_URL = 'https://cdgnqhdmsnrlzylgoecz.supabase.co/functions/v1/get-license'
 
 function b64ToBytes(b64: string): Uint8Array {
   // atob available in RN Hermes
@@ -113,6 +114,18 @@ export async function activateOnline(licenseCode: string): Promise<{ ok: boolean
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Gagal koneksi server' }
   }
+}
+
+export async function fetchLicenseByEmail(email: string): Promise<{ ok: boolean; licenses?: {code:string,status:string,created_at:string}[]; error?: string }> {
+  const e = email.trim().toLowerCase()
+  if (!e || !e.includes("@")) return { ok: false, error: "Email tidak valid" }
+  try {
+    const res = await fetch(SUPABASE_GET_LICENSE_URL + "?email=" + encodeURIComponent(e), { method: "GET" })
+    const j = await res.json().catch(()=>({}))
+    if (!res.ok) return { ok: false, error: j.error || `Gagal ambil lisensi (${res.status})` }
+    if (!j.found || !j.licenses?.length) return { ok: false, error: "Belum ada lisensi untuk email ini. Cek email benar / tunggu 1 menit setelah bayar." }
+    return { ok: true, licenses: j.licenses }
+  } catch (err:any) { return { ok: false, error: err?.message || "Gagal koneksi" } }
 }
 
 // Legacy HMAC helpers kept for reference but not used for new licenses
