@@ -51,8 +51,8 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
     )
   }
 
-  const doCheckout = (method: 'cash' | 'qris', paid: number, discount: number) => {
-    const res = checkout(cart, method, paid, discount)
+  const doCheckout = (method: 'cash' | 'qris', paid: number, discount: number, customerName = '') => {
+    const res = checkout(cart, method, paid, discount, customerName)
     setCart([])
     setShowCheckout(false)
     onSold()

@@ -95,6 +95,18 @@ export function initDatabase(): void {
   if (!txCols.includes('discount')) {
     d.execSync('ALTER TABLE transactions ADD COLUMN discount INTEGER NOT NULL DEFAULT 0')
   }
+  if (!txCols.includes('customer_name')) {
+    d.execSync("ALTER TABLE transactions ADD COLUMN customer_name TEXT NOT NULL DEFAULT ''")
+  }
+  if (!txCols.includes('voided')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN voided INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!txCols.includes('voided_at')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN voided_at TEXT')
+  }
+  if (!txCols.includes('void_reason')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN void_reason TEXT')
+  }
 }
 
 export function seedDemoData(): void {

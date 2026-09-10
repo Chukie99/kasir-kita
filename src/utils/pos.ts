@@ -52,7 +52,8 @@ export function checkout(
   cart: CartLine[],
   paymentMethod: 'cash' | 'qris',
   paid: number,
-  discount = 0
+  discount = 0,
+  customerName = ''
 ): { invoice: string; total: number; change: number } {
   if (cart.length === 0) throw new Error('Keranjang masih kosong')
   const { total } = cartTotals(cart, discount)
@@ -78,9 +79,9 @@ export function checkout(
     const txId = Number(
       db
         .prepareSync(
-          'INSERT INTO transactions (invoice, total, paid, change, payment_method, discount) VALUES (?, ?, ?, ?, ?, ?)'
+          'INSERT INTO transactions (invoice, total, paid, change, payment_method, discount, customer_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
         )
-        .executeSync(invoice, total, effectivePaid, change, paymentMethod, discount).lastInsertRowId
+        .executeSync(invoice, total, effectivePaid, change, paymentMethod, discount, customerName.trim()).lastInsertRowId
     )
     const insItem = db.prepareSync(
       'INSERT INTO transaction_items (transaction_id, product_name, unit_price, qty, modifiers_label, line_total) VALUES (?, ?, ?, ?, ?, ?)'
@@ -109,4 +110,14 @@ export function lowStockProducts(threshold = 5): Product[] {
        ORDER BY p.stock ASC`,
       [threshold]
     )
+}
+
+export function voidTransaction(transactionId: number, reason = ''): void {
+  getDb().prepareSync(
+    "UPDATE transactions SET voided = 1, voided_at = datetime('now','localtime'), void_reason = ? WHERE id = ?"
+  ).executeSync(reason, transactionId)
+}
+
+export function getTransactionById(id: number) {
+  return getDb().getFirstSync<any>('SELECT * FROM transactions WHERE id = ?', [id])
 }

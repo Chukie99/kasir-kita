@@ -9,7 +9,7 @@ interface Props {
   visible: boolean
   cart: CartLine[]
   onClose: () => void
-  onConfirm: (method: 'cash' | 'qris', paid: number, discount: number) => void
+  onConfirm: (method: 'cash' | 'qris', paid: number, discount: number, customerName: string) => void
 }
 
 const PRESETS = [20000, 50000, 100000]
@@ -19,6 +19,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
   const [paidStr, setPaidStr] = React.useState('')
   const [discMode, setDiscMode] = React.useState<'none' | 'rp' | 'pct'>('none')
   const [discVal, setDiscVal] = React.useState('')
+  const [customerName, setCustomerName] = React.useState('')
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0)
   const calculatedDiscount =
     discMode === 'rp'
@@ -32,7 +33,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
   const enough = method === 'qris' || paid >= finalTotal
   const isExact = paid === finalTotal && paid > 0
 
-  const reset = () => { setPaidStr(''); setMethod('cash'); setDiscMode('none'); setDiscVal('') }
+  const reset = () => { setPaidStr(''); setMethod('cash'); setDiscMode('none'); setDiscVal(''); setCustomerName('') }
 
   React.useEffect(() => {
     if (method === 'qris') setPaidStr('')
@@ -84,6 +85,16 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
         <Text style={styles.totalLabelBold}>Total Bayar</Text>
         <Text style={styles.totalValueBig}>{rupiah(finalTotal)}</Text>
       </Surface>
+
+      {/* Atas Nama — opsional, buat bukti komplain */}
+      <Text style={styles.label}>Atas Nama (opsional)</Text>
+      <TextInput
+        value={customerName}
+        onChangeText={setCustomerName}
+        placeholder="Contoh: PILAR IKM UI / Budi Meja 3"
+        dense
+        style={{ backgroundColor: colors.surface }}
+      />
 
       {/* Metode Bayar */}
       <Text style={styles.label}>Metode Bayar</Text>
@@ -144,7 +155,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
       <Button
         mode="contained"
         disabled={!enough || cart.length === 0}
-        onPress={() => { onConfirm(method, paid, calculatedDiscount); reset() }}
+        onPress={() => { onConfirm(method, paid, calculatedDiscount, customerName.trim()); reset() }}
         contentStyle={styles.confirmBtn}
         style={{ marginTop: 16 }}
       >

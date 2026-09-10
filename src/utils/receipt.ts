@@ -8,7 +8,7 @@ export function buildReceiptText(txId: number): string {
   const db = getDb()
   const tx = db.getFirstSync<{
     invoice: string; created_at: string; total: number; paid: number;
-    change: number; payment_method: string; discount: number;
+    change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string;
   }>('SELECT * FROM transactions WHERE id = ?', [txId])
   if (!tx) return 'Struk tidak ditemukan'
 
@@ -19,6 +19,8 @@ export function buildReceiptText(txId: number): string {
 
   const storeName = getSetting('storeName', 'Kasir Kita')
   const line = '-'.repeat(32)
+  const voidHead = tx.voided ? '*** TRANSAKSI VOID ***' : null
+  const customerLine = tx.customer_name ? `Atas Nama: ${tx.customer_name}` : null
   const rows = items.map((i) => {
     const mods = i.modifiers_label ? `\n  + ${i.modifiers_label}` : ''
     return `${i.qty}x ${i.product_name}${mods}\n  ${('Rp ' + (i.unit_price * i.qty).toLocaleString('id-ID')).padStart(30)}`
@@ -29,8 +31,10 @@ export function buildReceiptText(txId: number): string {
 
   return [
     `*${storeName.toUpperCase()}*`,
+    ...(voidHead ? [voidHead, line] : []),
     line,
     `No: ${tx.invoice}`,
+    ...(customerLine ? [customerLine] : []),
     `Tgl: ${tx.created_at.slice(0, 16)}`,
     line,
     rows,
@@ -54,7 +58,7 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   const db = getDb()
   const tx = db.getFirstSync<{
     invoice: string; created_at: string; total: number; paid: number;
-    change: number; payment_method: string; discount: number;
+    change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string;
   }>('SELECT * FROM transactions WHERE id = ?', [txId])
   if (!tx) return '<p>Struk tidak ditemukan</p>'
 
@@ -84,6 +88,7 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #111; }
   h2 { text-align: center; margin: 4px 0 2px; letter-spacing: 1px; font-size: ${size === 'A4' ? '16px' : '13px'}; }
   .store-sub { text-align: center; font-size: 9px; color: #555; margin-bottom: 6px; }
+  .void { text-align:center; font-weight:900; color:#B91C1C; border:2px solid #B91C1C; padding:4px 0; margin:6px 0; letter-spacing:1px; }
   .line { border-top: 1px dashed #000; margin: 6px 0; }
   .meta { font-size: 10px; }
   .item { display: flex; justify-content: space-between; gap: 6px; margin: 3px 0; }
@@ -92,10 +97,11 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   .center { text-align: center; font-size: 10px; }
   .badge-size { text-align: center; font-size: 8px; color: #888; margin-top: 8px; }
 </style></head><body>
+${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}
 ${logoHtml}
 <h2>${esc(storeName.toUpperCase())}</h2>
 ${size === 'A4' ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</div>' : ''}
-<div class="meta">No: ${tx.invoice}<br/>Tgl: ${tx.created_at.slice(0, 16)} &bull; Kertas: ${size}</div>
+<div class="meta">No: ${tx.invoice}<br/>${tx.customer_name ? `Atas Nama: ${esc(tx.customer_name)}<br/>` : ''}Tgl: ${tx.created_at.slice(0, 16)} &bull; Kertas: ${size}${tx.voided && tx.void_reason ? `<br/>Void: ${esc(tx.void_reason)}` : ''}</div>
 <div class="line"></div>
 ${rows}
 <div class="line"></div>
