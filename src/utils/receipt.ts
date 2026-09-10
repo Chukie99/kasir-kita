@@ -75,22 +75,26 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
     return `<div class="item"><div>${i.qty}x ${esc(i.product_name)}${mods}</div><b>${rp(i.unit_price * i.qty)}</b></div>`
   }).join('')
 
-  // Paper widths: 58mm = 48mm content, 80mm = 72mm, A4 = 170mm
-  const width = size === '80mm' ? '72mm' : size === 'A4' ? '170mm' : '48mm'
+  // Content widths: thermal 58mm ~ 54mm usable (2mm margin), 80mm ~ 74mm, A4 170mm
+  const width = size === '80mm' ? '74mm' : size === 'A4' ? '170mm' : '54mm'
   const fontSize = size === 'A4' ? '12px' : '11px'
+  const pageSize = size === 'A4' ? 'A4 portrait' : size === '80mm' ? '80mm auto' : '58mm auto'
+  const pageMargin = size === 'A4' ? '12mm' : '2mm'
   const logoHtml = logoUri
     ? `<div style="text-align:center;margin-bottom:6px"><img src="${logoUri}" style="max-width:${size === 'A4' ? '120px' : '80px'};max-height:${size === 'A4' ? '80px' : '56px'};object-fit:contain"/></div>`
     : ''
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
-  @page { size: ${size === 'A4' ? 'A4 portrait' : size}; margin: ${size === 'A4' ? '12mm' : '4mm'}; }
-  body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #111; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  @page { size: ${pageSize}; margin: ${pageMargin}; }
+  body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   h2 { text-align: center; margin: 4px 0 2px; letter-spacing: 1px; font-size: ${size === 'A4' ? '16px' : '13px'}; }
   .store-sub { text-align: center; font-size: 9px; color: #555; margin-bottom: 6px; }
   .void { text-align:center; font-weight:900; color:#B91C1C; border:2px solid #B91C1C; padding:4px 0; margin:6px 0; letter-spacing:1px; }
   .line { border-top: 1px dashed #000; margin: 6px 0; }
-  .meta { font-size: 10px; }
+  .meta { font-size: 10px; word-break: break-word; }
   .item { display: flex; justify-content: space-between; gap: 6px; margin: 3px 0; }
   .mod { color: #444; padding-left: 8px; font-size: 10px; }
   .tot { display: flex; justify-content: space-between; margin: 2px 0; font-weight: bold; }
