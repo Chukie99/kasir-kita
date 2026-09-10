@@ -1,15 +1,17 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, ScrollView, Linking, Pressable, Alert, Image } from 'react-native'
-import { Text, Surface, Button, List, TextInput, SegmentedButtons } from 'react-native-paper'
+import { Text, Surface, Button, List, TextInput } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import { exportDailyReport } from '../utils/export'
 import { createBackup, restoreFromSql } from '../utils/backup'
-import { getSetting, setSetting, getPaperSize, type PaperSize } from '../utils/settings'
+import { getSetting, setSetting, getPaperSize, PAPER_OPTIONS, type PaperSize } from '../utils/settings'
 
 interface Props {
   dark: boolean
   onToggleTheme: () => void
 }
+
+const GROUPS = ['LABEL CONTINUOUS WITH CORE', 'PAPER THERMAL CORE', 'PAPER THERMAL CORELESS', 'LAINNYA'] as const
 
 export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [status, setStatus] = useState<string>('')
@@ -73,11 +75,10 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     setTimeout(() => setStatus(''), 2000)
   }
 
-  const onPaperSizeChange = (v: string) => {
-    const nv = v as PaperSize
-    setPaperSize(nv)
-    setSetting('paperSize', nv)
-    setStatus(`Ukuran kertas: ${nv} — thermal 58mm kecil, 80mm sedang, A4 untuk PDF/email`)
+  const onPaperSizeChange = (v: PaperSize) => {
+    setPaperSize(v)
+    setSetting('paperSize', v)
+    setStatus(`Kertas: ${v} — PDF & cetak akan pakai ${v}`)
     setTimeout(() => setStatus(''), 3500)
   }
 
@@ -120,6 +121,25 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     }
   }
 
+  // group options: 57x30 appears in both LABEL and CORELESS — show duplicate entry for CORELESS as alias
+  const allOptions = [
+    ...PAPER_OPTIONS,
+    { value: 'A4' as PaperSize, label: 'A4 — 210 × 297 mm', group: 'LAINNYA', wMm: 210, hMm: 297 },
+  ]
+  // add duplicate 57x30 for CORELESS group so user sees it in both places
+  const displayOptions = [
+    ...allOptions,
+    { value: '57x30' as PaperSize, label: '57 × 30 mm', group: 'PAPER THERMAL CORELESS', wMm: 57, hMm: 30 },
+  ]
+
+  const grouped: Record<string, typeof displayOptions> = {}
+  for (const o of displayOptions) {
+    if (!grouped[o.group]) grouped[o.group] = []
+    // dedup 57x30 in same group
+    if (grouped[o.group].some(x => x.value === o.value && x.group === o.group)) continue
+    grouped[o.group].push(o)
+  }
+
   return (
     <ScrollView style={styles.root} contentContainerStyle={{ paddingBottom: 110 }}>
       <Text style={styles.section}>Toko</Text>
@@ -147,7 +167,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
       <Text style={styles.section}>Logo Struk (Upload PNG)</Text>
       <Surface style={styles.card} elevation={0}>
         <View style={{ padding: 14, gap: 12 }}>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>Logo akan muncul di atas struk thermal 58mm/80mm & PDF A4. Upload PNG transparan 512x512 ideal.</Text>
+          <Text style={{ fontSize: 12, color: colors.textMuted }}>Logo akan muncul di atas struk thermal & label. Upload PNG transparan 512x512 ideal.</Text>
           {logoUri ? (
             <View style={{ alignItems: 'center', gap: 10 }}>
               <Image source={{ uri: logoUri }} style={{ width: 96, height: 96, borderRadius: 12, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border }} resizeMode="contain" />
@@ -165,18 +185,23 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
       <Text style={styles.section}>Ukuran Kertas Struk</Text>
       <Surface style={styles.card} elevation={0}>
         <View style={{ padding: 14, gap: 10 }}>
-          <Text style={{ fontSize: 12, color: colors.textMuted }}>Thermal kecil (58mm) untuk printer bluetooth mini. 80mm lebih lega. A4 untuk PDF/email — gede & rapi.</Text>
-          <SegmentedButtons
-            value={paperSize}
-            onValueChange={onPaperSizeChange}
-            buttons={[
-              { value: '58mm', label: '58mm' },
-              { value: '80mm', label: '80mm' },
-              { value: 'A4', label: 'A4 PDF' },
-            ]}
-            density="small"
-          />
-          <Text style={{ fontSize: 11, color: colors.greenDark, fontWeight: '700' }}>Aktif: {paperSize} — {paperSize === '58mm' ? 'Thermal mini (paling umum)' : paperSize === '80mm' ? 'Thermal lebar' : 'PDF A4 untuk email/WA'}</Text>
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>Pilih sesuai roll di printer. Label 30mm pendek, kertas 50x50 kotak. PDF akan pas ukurannya — tidak A4 melar.</Text>
+          {Object.entries(grouped).map(([group, opts]) => (
+            <View key={group} style={{ gap: 6, marginTop: 6 }}>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: colors.greenDark, letterSpacing: 0.5 }}>{group}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {opts.map((o) => {
+                  const active = paperSize === o.value
+                  return (
+                    <Pressable key={`${group}-${o.value}`} onPress={() => onPaperSizeChange(o.value as PaperSize)} style={[styles.paperChip, active && styles.paperChipActive]}>
+                      <Text style={[styles.paperChipLabel, active && styles.paperChipLabelActive]}>{o.label}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            </View>
+          ))}
+          <Text style={{ fontSize: 11, color: colors.greenDark, fontWeight: '700', marginTop: 4 }}>Aktif: {paperSize}</Text>
         </View>
       </Surface>
 
@@ -245,7 +270,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="Kasir Kita v1.4.2" description="Kasir offline untuk warung & kedai — thermal 58mm/80mm + A4 PDF" />
+        <List.Item title="Kasir Kita v1.0.8" description="Kasir offline — thermal & label 57/80mm + A4" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
       </Surface>
 
@@ -264,10 +289,11 @@ const styles = StyleSheet.create({
   card: { backgroundColor: colors.surface, borderRadius: 12, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', marginHorizontal: 14 },
   statusBox: { margin: 14, backgroundColor: colors.chipBg, borderRadius: 10, padding: 12 },
   statusText: { color: colors.greenDark, fontSize: 13, fontWeight: '600' },
-  themeSwitch: {
-    width: 52, height: 30, borderRadius: 15,
-    backgroundColor: '#D8D2C2', padding: 3, justifyContent: 'center',
-  },
+  paperChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
+  paperChipActive: { backgroundColor: colors.green, borderColor: colors.green },
+  paperChipLabel: { fontSize: 12, fontWeight: '700', color: colors.text },
+  paperChipLabelActive: { color: '#FFF' },
+  themeSwitch: { width: 52, height: 30, borderRadius: 15, backgroundColor: '#D8D2C2', padding: 3, justifyContent: 'center' },
   themeSwitchOn: { backgroundColor: colors.green },
   themeKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF' },
   themeKnobOn: { alignSelf: 'flex-end' },
