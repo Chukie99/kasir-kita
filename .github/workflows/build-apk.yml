@@ -1,0 +1,66 @@
+name: Build APK (Kasir Kita)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (kosongkan pakai app.json)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Expo prebuild (android)
+        run: npx expo prebuild --platform android --clean --non-interactive
+
+      - name: Build APK (Gradle)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK
+        run: |
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "APK=$APK"
+          ls -lh "$APK"
+          mkdir -p apk
+          VER=$(node -p "require('./app.json').expo.version")
+          cp "$APK" "apk/kasir-kita-v${VER}.apk"
+          ls -lh apk/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kasir-kita-apk
+          path: apk/*.apk
+          retention-days: 14
+
+      - name: Create Release (if tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: apk/*.apk
+          generate_release_notes: true
