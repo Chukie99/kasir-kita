@@ -124,16 +124,35 @@ export function buildReceiptPreviewHtml(txId: number, paperSize?: PaperSize): st
   return buildReceiptHtml(txId, paperSize)
 }
 
+function paperWidthPx(size: PaperSize): number {
+  if (size === 'A4') return 595 // A4 @72ppi
+  if (size === '80mm') return 227 // 80mm @72ppi
+  return 165 // 58mm @72ppi — thermal mini
+}
+function paperHeightPx(size: PaperSize): number {
+  return size === 'A4' ? 842 : 1200 // thermal tinggi biar 1 halaman panjang gak kepotong
+}
+
 /** Open the Android print dialog with a formatted receipt. Uses store paperSize setting. */
 export async function printReceipt(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
-  await Print.printAsync({ html: buildReceiptHtml(txId, size) })
+  await Print.printAsync({
+    html: buildReceiptHtml(txId, size),
+    width: paperWidthPx(size),
+    height: paperHeightPx(size),
+    margins: { top: 4, right: 4, bottom: 4, left: 4 },
+  })
 }
 
 /** Export receipt as PDF file and share (for A4 / email). */
 export async function shareReceiptPdf(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
-  const { uri } = await Print.printToFileAsync({ html: buildReceiptHtml(txId, size) })
+  const { uri } = await Print.printToFileAsync({
+    html: buildReceiptHtml(txId, size),
+    width: paperWidthPx(size),
+    height: paperHeightPx(size),
+    margins: { top: 4, right: 4, bottom: 4, left: 4 },
+  })
   const Sharing = await import('expo-sharing')
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Bagikan struk PDF' })
