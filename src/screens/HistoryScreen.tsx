@@ -5,7 +5,7 @@ import { Text, Surface, Modal, Button, TextInput } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import { getDb } from '../db/database'
 import { voidTransaction } from '../utils/pos'
-import { buildReceiptText, printReceipt } from '../utils/receipt'
+import { buildReceiptText, printReceipt, shareReceiptPdf } from '../utils/receipt'
 import { shareReceipt } from '../utils/export'
 
 type Period = 'today' | 'week' | 'month'
@@ -166,7 +166,10 @@ export default function HistoryScreen() {
 
             <View style={styles.detailBtns}>
               <Button mode="outlined" icon="printer" onPress={async () => { try { await printReceipt(detail.id) } catch (e: any) { Alert.alert('Gagal cetak', String(e?.message || e)) } }} style={{ flex: 1 }}>Cetak Ulang</Button>
-              <Button mode="outlined" icon="share-variant" onPress={async () => { try { await shareReceipt(buildReceiptText(detail.id)) } catch {} }} style={{ flex: 1 }}>Share WA</Button>
+              <Button mode="outlined" icon="file-pdf-box" onPress={async () => { try { await shareReceiptPdf(detail.id) } catch (e: any) { Alert.alert('Gagal PDF', String(e?.message || e)) } }} style={{ flex: 1 }}>PDF 58mm</Button>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
+              <Button mode="outlined" icon="share-variant" onPress={async () => { try { await shareReceipt(buildReceiptText(detail.id)) } catch {} }} style={{ flex: 1 }}>Share WA (teks)</Button>
             </View>
             {!detail.voided ? (
               <Button mode="contained" buttonColor="#B91C1C" textColor="#FFF" onPress={() => setShowVoid(true)} style={{ marginTop: 10 }}>Void / Koreksi Qty</Button>
