@@ -1,6 +1,6 @@
 # Kasir Kita — Kasir Offline untuk Warung, Kedai & Kafe
 
-**v1.0.1 (build 1)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
+**v1.0.8 (build 8)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
 
 ![Expo](https://img.shields.io/badge/Expo-57-black) ![RN](https://img.shields.io/badge/React_Native-0.86-blue) ![TS](https://img.shields.io/badge/TypeScript-strict-blue) ![Offline](https://img.shields.io/badge/Offline-100%25-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
@@ -10,7 +10,7 @@
 
 ---
 
-## ✨ Fitur v1.0.1
+## ✨ Fitur v1.0.8
 
 ### 🛒 Kasir — 1-Tap Jual (ala Kasir Pintar & Loyverse)
 - Grid produk **foto 96px** 2-kolom (3-kolom di tablet), nama & harga besar — **tap = +1** tanpa modal
@@ -32,7 +32,11 @@
 
 ### ⚙️ Pengaturan & Backup
 - **Nama toko** (muncul di header & struk) + **Logo struk PNG** (upload galeri → `pos_images/store_logo.png` → tampil di struk thermal/PDF)
-- **Ukuran kertas struk**: `58mm` (printer mini bluetooth paling umum, 48mm content) / `80mm` (72mm lega) / `A4` (170mm buat PDF/email) — SegmentedButtons, simpan `paperSize`
+- **Ukuran kertas struk** (9 opsi, `pdf-lib` biar PDF pas tidak A4 melar):
+  - `LABEL CONTINUOUS WITH CORE`: `57×30`, `80×30`
+  - `PAPER THERMAL CORE`: `50×50`, `80×40`, `80×50`, `80×80`
+  - `PAPER THERMAL CORELESS`: `57×30`, `57×40`
+  - `LAINNYA`: `A4` — pilih di Pengaturan → chip per group, simpan `paperSize`
 - **Tema** terang/gelap (pastel #F5EFE6 #AEBDCA #7895B2 #0F2440 + Inter) + **Backup .sql / Restore** + **lastBackupAt** indicator
 - Beli/Perpanjang Lisensi (link Lynk.id/WA)
 
@@ -80,9 +84,12 @@ eas build -p android --profile production # → .aab (Play Store)
 | `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
 | `production` | `.aab` | Upload Google Play |
 
-APK history: `apk/kasir-kita-v1.0.1.apk` … `v1.0.1.apk` (74M each) — lihat [Releases](https://github.com/Chukie99/kasir-kita-android/releases)
+APK history: `apk/kasir-kita-v1.0.8.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
 
-## 🔑 Key Generator (untuk penjual)
+## 🔐 Aktivasi — Ed25519 1 license = 1 device (Opsi A via Email)
+Buyer checkout di Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** (instant, tanpa tunggu email). Token `base64(LICENSE|DEVICE|sig)` verify `tweetnacl` offline. `DEVICE_MISMATCH 403` jika beda HP.
+
+## 🔑 Key Generator (legacy HMAC, untuk penjual)
 
 Pembeli kirim **Device ID** dari layar aktivasi → generate:
 
@@ -104,7 +111,7 @@ src/
 │   ├── CashierScreen.tsx       # search sticky + kategori swipe + grid + FAB scan + StickyCartBar
 │   ├── ManageProductsScreen.tsx# foto galeri + kategori + Favorit + low-stock
 │   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint/Bagikan per transaksi
-│   └── SettingsScreen.tsx      # nama toko + logo PNG + paperSize 58/80/A4 + backup/restore
+│   └── SettingsScreen.tsx      # nama toko + logo PNG + 9 ukuran 57×30..80×80+A4 (chip group) + backup/restore
 ├── components/
 │   ├── FloatingBottomBar.tsx   # siluet outline 4 tab, fixed bottom:20
 │   ├── StickyCartBar.tsx       # pill navy bottom:84
@@ -112,12 +119,12 @@ src/
 │   └── CheckoutSheet.tsx       # bayar + kembalian
 ├── theme/theme.ts              # Pastel MD3 + Inter
 └── utils/
-    ├── pos.ts                  # cartTotals, checkout (validasi stok), lowStockProducts
+    ├── pos.ts                  # cartTotals, checkout + void soft, customer_name, filter voided=0
     ├── products.ts             # CRUD produk/kategori, stock, favorite
-    ├── receipt.ts              # buildReceiptText/Html (58/80/A4 + logo), print, share PDF
+    ├── receipt.ts              # buildReceiptText/Html 9 ukuran + logo, pdf-lib MediaBox exact per mm, print/share PDF
     ├── backup.ts               # createBackup/restoreFromSql (SDK57 File/Directory/Paths)
     ├── export.ts               # exportDailyReport CSV + PDF
-    └── settings.ts             # getSetting/setSetting + ThemePref + PaperSize 58mm/80mm/A4
+    └── settings.ts             # getSetting + PAPER_OPTIONS 9 ukuran + PaperSize + getPaperDims/normalize
 assets/  icon.png, splash-icon.png, android-icon-*.png
 keygen.mjs / keygen-helper.html  # owner-only, jangan publish secret baru
 ```
@@ -139,6 +146,13 @@ Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px therm
 
 ## 📋 Changelog
 
+- **v1.0.8 (8)** — 9 ukuran kertas 57×30..80×80+A4 (chip group), PDF `pdf-lib mmToPt` exact per ukuran, GH Actions build (no EAS quota)
+- **v1.0.7 (7)** — PDF thermal `pdf-lib` MediaBox 164pt (fix expo-print A4 595)
+- **v1.0.6 (6)** — `width/height` expo-print attempt (masih A4, di-fix 1.0.7)
+- **v1.0.5 (5)** — `@page 58mm auto` attempt
+- **v1.0.4 (4)** — History detail + cetak ulang + void soft + atas nama + search
+- **v1.0.3 (3)** — Opsi A via Email (get-license instant)
+- **v1.0.2 (2)** — Ed25519 1=1 device
 - **v1.0.1 (10)** — Fix ikon kotak-kotak (outline valid), splash loading navy, logo PNG di struk, pilih kertas 58/80/A4
 - **v1.4.2 (9)** — Siluet thin stroke 1.6px, fixed bottom nav tidak ikut scroll
 - **v1.4.1 (8)** — Anti-overlap: `paddingBottom 110+` semua screen, `StickyCartBar bottom:84`, TSC 0
