@@ -53,7 +53,7 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
-/** Build receipt HTML — supports 58mm / 80mm thermal and A4 PDF. Logo from settings. */
+/** Build receipt HTML — supports 58mm / 80mm thermal and A4 PDF. */
 export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   const db = getDb()
   const tx = db.getFirstSync<{
@@ -75,7 +75,6 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
     return `<div class="item"><div>${i.qty}x ${esc(i.product_name)}${mods}</div><b>${rp(i.unit_price * i.qty)}</b></div>`
   }).join('')
 
-  // Content widths: thermal 58mm ~ 54mm usable (2mm margin), 80mm ~ 74mm, A4 170mm
   const width = size === '80mm' ? '74mm' : size === 'A4' ? '170mm' : '54mm'
   const fontSize = size === 'A4' ? '12px' : '11px'
   const pageSize = size === 'A4' ? 'A4 portrait' : size === '80mm' ? '80mm auto' : '58mm auto'
@@ -125,36 +124,131 @@ export function buildReceiptPreviewHtml(txId: number, paperSize?: PaperSize): st
 }
 
 function paperWidthPx(size: PaperSize): number {
-  if (size === 'A4') return 595 // A4 @72ppi
-  if (size === '80mm') return 227 // 80mm @72ppi
-  return 165 // 58mm @72ppi — thermal mini
+  if (size === 'A4') return 595
+  if (size === '80mm') return 227
+  return 165
 }
 function paperHeightPx(size: PaperSize): number {
-  return size === 'A4' ? 842 : 1200 // thermal tinggi biar 1 halaman panjang gak kepotong
+  return size === 'A4' ? 842 : 1200
 }
 
-/** Open the Android print dialog with a formatted receipt. Uses store paperSize setting. */
+/** Open the Android print dialog — HTML print (Chromium WebView). Width param helps but OS may ignore for direct print. */
 export async function printReceipt(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
   await Print.printAsync({
     html: buildReceiptHtml(txId, size),
     width: paperWidthPx(size),
     height: paperHeightPx(size),
-    margins: { top: 4, right: 4, bottom: 4, left: 4 },
   })
 }
 
-/** Export receipt as PDF file and share (for A4 / email). */
+/**
+ * Export receipt as PDF — for 58mm/80mm uses pdf-lib to guarantee MediaBox mini (expo-print ignores width for PDF).
+ * For A4 still uses expo-print (HTML → PDF looks nicer for A4).
+ */
 export async function shareReceiptPdf(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
+  if (size === '58mm' || size === '80mm') {
+    await shareReceiptPdfLib(txId, size)
+    return
+  }
   const { uri } = await Print.printToFileAsync({
     html: buildReceiptHtml(txId, size),
     width: paperWidthPx(size),
     height: paperHeightPx(size),
-    margins: { top: 4, right: 4, bottom: 4, left: 4 },
   })
   const Sharing = await import('expo-sharing')
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Bagikan struk PDF' })
+  }
+}
+
+async function shareReceiptPdfLib(txId: number, size: '58mm' | '80mm'): Promise<void> {
+  const db = getDb()
+  const tx = db.getFirstSync<{
+    invoice: string; created_at: string; total: number; paid: number; change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string;
+  }>('SELECT * FROM transactions WHERE id = ?', [txId])
+  if (!tx) return
+  const items = db.getAllSync<{ product_name: string; qty: number; unit_price: number; modifiers_label: string; line_total: number }>(
+    'SELECT product_name, qty, unit_price, modifiers_label, line_total FROM transaction_items WHERE transaction_id = ?',
+    [txId]
+  )
+  const storeName = getSetting('storeName', 'Kasir Kita')
+  const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
+  const pdf = await PDFDocument.create()
+  const font = await pdf.embedFont(StandardFonts.Courier)
+  const fontBold = await pdf.embedFont(StandardFonts.CourierBold)
+
+  // 58mm = 164.4pt, 80mm = 226.7pt at 72dpi — 2mm margin each side
+  const pageWidth = size === '58mm' ? 164 : 227
+  const margin = 6
+  const contentWidth = pageWidth - margin * 2
+  const lineH = 9
+  const smallH = 7
+  let y = 0 // we compute height first then draw top-down
+
+  // Build lines to measure height
+  type Line = { text: string; bold?: boolean; size: number; align?: 'left' | 'center' | 'right'; gap?: number }
+  const lines: Line[] = []
+  const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
+  if (tx.voided) { lines.push({ text: '*** TRANSAKSI VOID ***', bold: true, size: 8, align: 'center' }); lines.push({ text: '------------------------------', size: 6, align: 'center' }) }
+  lines.push({ text: storeName.toUpperCase(), bold: true, size: 10, align: 'center' })
+  lines.push({ text: '------------------------------', size: 6, align: 'center' })
+  lines.push({ text: `No: ${tx.invoice}`, size: 7, align: 'left' })
+  if (tx.customer_name) lines.push({ text: `Atas Nama: ${tx.customer_name}`, size: 7, align: 'left' })
+  lines.push({ text: `Tgl: ${tx.created_at.slice(0, 16)}  ${size}`, size: 6, align: 'left' })
+  lines.push({ text: '------------------------------', size: 6, align: 'center' })
+  for (const it of items) {
+    const mods = it.modifiers_label ? ` +${it.modifiers_label}` : ''
+    // wrap product name if too long (approx 32 chars at 7pt on 58mm)
+    const maxChars = size === '58mm' ? 28 : 38
+    let name = `${it.qty}x ${it.product_name}${mods}`
+    while (name.length > maxChars) { lines.push({ text: name.slice(0, maxChars), size: 7 }); name = name.slice(maxChars) }
+    lines.push({ text: name, size: 7 })
+    const priceLine = rp(it.line_total)
+    lines.push({ text: priceLine, size: 7, align: 'right', gap: 0 })
+  }
+  lines.push({ text: '------------------------------', size: 6, align: 'center' })
+  if (tx.discount > 0) lines.push({ text: `Diskon  -${rp(tx.discount)}`, size: 7, align: 'right' })
+  lines.push({ text: `Total  ${rp(tx.total)}`, bold: true, size: 8, align: 'right' })
+  lines.push({ text: `${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'}  ${rp(tx.paid)}`, size: 7, align: 'right' })
+  if (tx.payment_method === 'cash') lines.push({ text: `Kembalian  ${rp(tx.change)}`, size: 7, align: 'right' })
+  lines.push({ text: '------------------------------', size: 6, align: 'center' })
+  lines.push({ text: 'Terima kasih!', size: 7, align: 'center' })
+  lines.push({ text: 'Semoga puas dengan layanan kami', size: 6, align: 'center' })
+
+  // Calculate page height + create page
+  const estHeight = lines.reduce((h, l) => h + (l.gap === 0 ? 7 : l.size + 3), 14) + 10
+  const pageHeight = Math.max(200, estHeight + 16)
+  const page = pdf.addPage([pageWidth, pageHeight])
+  let curY = pageHeight - 10
+
+  const drawLine = (l: Line) => {
+    const f = l.bold ? fontBold : font
+    const textWidth = f.widthOfTextAtSize(l.text, l.size)
+    let x = margin
+    if (l.align === 'center') x = (pageWidth - textWidth) / 2
+    else if (l.align === 'right') x = pageWidth - margin - textWidth
+    page.drawText(l.text, { x, y: curY, size: l.size, font: f, color: rgb(0, 0, 0) })
+    curY -= (l.gap === 0 ? 7 : l.size + 3)
+  }
+  for (const l of lines) drawLine(l)
+
+  const bytes = await pdf.save()
+  const { File, Paths } = await import('expo-file-system')
+  const out = new File(Paths.cache, `struk-${tx.invoice}.pdf`)
+  if (out.exists) out.delete()
+  out.create({ overwrite: true } as any)
+  // pdf-lib bytes -> base64 without Buffer (RN/Hermes)
+  const b64 = (() => {
+    let bin = ''
+    for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+    // @ts-ignore btoa exists on Hermes/JSC
+    return typeof btoa !== 'undefined' ? btoa(bin) : (global as any).btoa(bin)
+  })()
+  out.write(b64, { encoding: 'base64' } as any)
+  const Sharing = await import('expo-sharing')
+  if (await Sharing.isAvailableAsync()) {
+    await Sharing.shareAsync(out.uri, { mimeType: 'application/pdf', dialogTitle: `Struk ${tx.invoice} (${size})` })
   }
 }
