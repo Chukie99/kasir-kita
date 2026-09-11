@@ -9,7 +9,7 @@ interface Props {
   visible: boolean
   cart: CartLine[]
   onClose: () => void
-  onConfirm: (method: 'cash' | 'qris', paid: number, discount: number, customerName: string) => void
+  onConfirm: (method: 'cash' | 'qris', paid: number, discount: number, customerName: string, opts?: { isBon?: boolean; bonDueDate?: string; bonPaid?: number }) => void
 }
 
 const PRESETS = [20000, 50000, 100000]
@@ -20,6 +20,9 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
   const [discMode, setDiscMode] = React.useState<'none' | 'rp' | 'pct'>('none')
   const [discVal, setDiscVal] = React.useState('')
   const [customerName, setCustomerName] = React.useState('')
+  const [isBon, setIsBon] = React.useState(false)
+  const [bonDueDate, setBonDueDate] = React.useState('')
+  const [bonPaidStr, setBonPaidStr] = React.useState('')
   const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0)
   const calculatedDiscount =
     discMode === 'rp'
@@ -30,10 +33,10 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
   const finalTotal = Math.max(0, subtotal - calculatedDiscount)
   const paid = method === 'qris' ? finalTotal : parseInt(paidStr.replace(/\D/g, '') || '0', 10)
   const change = Math.max(0, paid - finalTotal)
-  const enough = method === 'qris' || paid >= finalTotal
+  const enough = isBon ? true : method === 'qris' || paid >= finalTotal
   const isExact = paid === finalTotal && paid > 0
 
-  const reset = () => { setPaidStr(''); setMethod('cash'); setDiscMode('none'); setDiscVal(''); setCustomerName('') }
+  const reset = () => { setPaidStr(''); setMethod('cash'); setDiscMode('none'); setDiscVal(''); setCustomerName(''); setIsBon(false); setBonDueDate(''); setBonPaidStr('') }
 
   React.useEffect(() => {
     if (method === 'qris') setPaidStr('')
@@ -96,6 +99,24 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
         style={{ backgroundColor: colors.surface }}
       />
 
+      {/* BON / Kasbon */}
+      <View style={styles.bonRow}>
+        <Text style={styles.label}>Bon / Kasbon</Text>
+        <Pressable onPress={() => setIsBon(v => !v)} style={[styles.bonToggle, isBon && styles.bonToggleActive]} android_ripple={{ color: colors.chipBg }}>
+          <Text style={[styles.bonToggleTxt, isBon && styles.bonToggleTxtActive]}>{isBon ? 'Ya — catat bon' : 'Tidak — lunas'}</Text>
+        </Pressable>
+      </View>
+      {isBon ? (
+        <View style={styles.bonBox}>
+          <Text style={styles.bonHelp}>Wajib isi Atas Nama. Sisa bon = Total − Bayar awal. Tagih via Riwayat → Kasbon.</Text>
+          <Text style={styles.label}>Bayar Awal (DP)</Text>
+          <TextInput value={bonPaidStr} onChangeText={v => setBonPaidStr(v.replace(/\D/g,''))} keyboardType="number-pad" dense style={{ backgroundColor: colors.surface }} placeholder="0 jika belum bayar" left={<TextInput.Affix text="Rp " />} />
+          <Text style={styles.label}>Jatuh Tempo (opsional)</Text>
+          <TextInput value={bonDueDate} onChangeText={setBonDueDate} dense style={{ backgroundColor: colors.surface }} placeholder="2026-09-30" />
+          <Text style={styles.bonSisa}>Sisa Bon: Rp {(Math.max(0, finalTotal - (parseInt(bonPaidStr.replace(/\D/g,'')||'0',10)))).toLocaleString('id-ID')}</Text>
+        </View>
+      ) : null}
+
       {/* Metode Bayar */}
       <Text style={styles.label}>Metode Bayar</Text>
       <SegmentedButtons
@@ -155,7 +176,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
       <Button
         mode="contained"
         disabled={!enough || cart.length === 0}
-        onPress={() => { onConfirm(method, paid, calculatedDiscount, customerName.trim()); reset() }}
+        onPress={() => { if (isBon && !customerName.trim()) { alert('Isi Atas Nama untuk Bon'); return; } const bonPaid = isBon ? parseInt(bonPaidStr.replace(/\D/g,'')||'0',10) : 0; if (isBon && bonPaid > finalTotal) { alert('Bayar awal melebihi total'); return; } onConfirm(method, paid, calculatedDiscount, customerName.trim(), isBon ? { isBon: true, bonDueDate: bonDueDate.trim() || undefined, bonPaid } : undefined); reset() }}
         contentStyle={styles.confirmBtn}
         style={{ marginTop: 16 }}
       >
@@ -199,6 +220,14 @@ const styles = StyleSheet.create({
   changeBoxBad: { borderColor: colors.error },
   changeLabel: { fontSize: 13, color: colors.textMuted, fontWeight: '600' },
   changeValue: { fontSize: 18, fontWeight: '900', color: colors.greenDark },
+  bonRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 },
+  bonToggle: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.surface },
+  bonToggleActive: { backgroundColor: colors.green, borderColor: colors.green },
+  bonToggleTxt: { fontSize: 12, fontWeight: '800', color: colors.textMuted },
+  bonToggleTxtActive: { color: '#FFF' },
+  bonBox: { backgroundColor: colors.chipBg, borderRadius: 12, padding: 12, marginTop: 8, borderWidth: 1, borderColor: colors.border },
+  bonHelp: { fontSize: 11, color: colors.textMuted, marginBottom: 6 },
+  bonSisa: { fontSize: 13, fontWeight: '900', color: colors.terra, marginTop: 8 },
   confirmBtn: { height: 54 },
   cancelBtn: { marginTop: 4 },
 })

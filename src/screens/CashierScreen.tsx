@@ -7,6 +7,7 @@ import { listCategories } from '../utils/products'
 import StickyCartBar, { rupiah } from '../components/StickyCartBar'
 import CheckoutSheet from '../components/CheckoutSheet'
 import { buildReceiptText, printReceipt } from '../utils/receipt'
+import { printViaBluetoothFallback } from '../utils/bluetooth'
 import { shareReceipt } from '../utils/export'
 
 export default function CashierScreen({ onSold }: { onSold: () => void }) {
@@ -51,8 +52,8 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
     )
   }
 
-  const doCheckout = (method: 'cash' | 'qris', paid: number, discount: number, customerName = '') => {
-    const res = checkout(cart, method, paid, discount, customerName)
+  const doCheckout = (method: 'cash' | 'qris', paid: number, discount: number, customerName = '', opts?: { isBon?: boolean; bonDueDate?: string; bonPaid?: number }) => {
+    const res = checkout(cart, method, paid, discount, customerName, opts)
     setCart([])
     setShowCheckout(false)
     onSold()
@@ -166,6 +167,9 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
           </View>
         )}
         <View style={styles.successBtnRow}>
+          <Button mode="outlined" icon="bluetooth" onPress={async () => { if (success?.txId) { try { const r = await printViaBluetoothFallback(buildReceiptText(success.txId)); if (r==='shared') await printReceipt(success.txId); } catch{} } }} style={{ flex: 1 }}>
+            Bluetooth
+          </Button>
           <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch {} }} style={{ flex: 1 }}>
             Cetak
           </Button>

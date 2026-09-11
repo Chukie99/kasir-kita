@@ -53,13 +53,15 @@ export function checkout(
   paymentMethod: 'cash' | 'qris',
   paid: number,
   discount = 0,
-  customerName = ''
+  customerName = '',
+  opts: { isBon?: boolean; bonDueDate?: string; bonPaid?: number } = {}
 ): { invoice: string; total: number; change: number } {
   if (cart.length === 0) throw new Error('Keranjang masih kosong')
   const { total } = cartTotals(cart, discount)
-  if (paymentMethod === 'cash' && paid < total) throw new Error('Uang bayar kurang dari total')
-  const effectivePaid = paymentMethod === 'qris' ? total : paid
-  const change = effectivePaid - total
+  const isBon = !!opts.isBon
+  if (!isBon && paymentMethod === 'cash' && paid < total) throw new Error('Uang bayar kurang dari total')
+  const effectivePaid = isBon ? (opts.bonPaid ?? 0) : paymentMethod === 'qris' ? total : paid
+  const change = isBon ? 0 : effectivePaid - total
 
   // Validasi stok sebelum transaksi — jangan sampai minus
   for (const line of cart) {
@@ -79,9 +81,9 @@ export function checkout(
     const txId = Number(
       db
         .prepareSync(
-          'INSERT INTO transactions (invoice, total, paid, change, payment_method, discount, customer_name) VALUES (?, ?, ?, ?, ?, ?, ?)'
+          'INSERT INTO transactions (invoice, total, paid, change, payment_method, discount, customer_name, is_bon, bon_paid, bon_due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         )
-        .executeSync(invoice, total, effectivePaid, change, paymentMethod, discount, customerName.trim()).lastInsertRowId
+        .executeSync(invoice, total, effectivePaid, change, paymentMethod, discount, customerName.trim(), isBon ? 1 : 0, isBon ? effectivePaid : 0, opts.bonDueDate || null).lastInsertRowId
     )
     const insItem = db.prepareSync(
       'INSERT INTO transaction_items (transaction_id, product_name, unit_price, qty, modifiers_label, line_total) VALUES (?, ?, ?, ?, ?, ?)'

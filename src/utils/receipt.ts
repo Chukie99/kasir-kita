@@ -8,7 +8,7 @@ export function buildReceiptText(txId: number): string {
   const db = getDb()
   const tx = db.getFirstSync<{
     invoice: string; created_at: string; total: number; paid: number;
-    change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string;
+    change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string; is_bon?: number; bon_paid?: number; bon_due_date?: string | null;
   }>('SELECT * FROM transactions WHERE id = ?', [txId])
   if (!tx) return 'Struk tidak ditemukan'
   const items = db.getAllSync<{ product_name: string; qty: number; unit_price: number; modifiers_label: string }>(
@@ -19,6 +19,8 @@ export function buildReceiptText(txId: number): string {
   const line = '-'.repeat(32)
   const voidHead = tx.voided ? '*** TRANSAKSI VOID ***' : null
   const customerLine = tx.customer_name ? `Atas Nama: ${tx.customer_name}` : null
+  const bonLine = tx.is_bon ? `BON — Sisa: Rp ${((tx.total) - (tx.bon_paid ?? 0)).toLocaleString('id-ID')}${tx.bon_due_date ? ' (Jatuh tempo '+tx.bon_due_date+')' : ''}` : null
+  const bonPaidLine = tx.is_bon ? `Dibayar: Rp ${(tx.bon_paid ?? 0).toLocaleString('id-ID')}` : null
   const rows = items.map((i) => {
     const mods = i.modifiers_label ? `\n  + ${i.modifiers_label}` : ''
     return `${i.qty}x ${i.product_name}${mods}\n  ${('Rp ' + (i.unit_price * i.qty).toLocaleString('id-ID')).padStart(30)}`
@@ -31,6 +33,8 @@ export function buildReceiptText(txId: number): string {
     line,
     `No: ${tx.invoice}`,
     ...(customerLine ? [customerLine] : []),
+    ...(bonLine ? [bonLine] : []),
+    ...(bonPaidLine ? [bonPaidLine] : []),
     `Tgl: ${tx.created_at.slice(0, 16)}`,
     line,
     rows,
@@ -95,7 +99,7 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   .center { text-align: center; font-size: 9px; }
   .badge-size { text-align: center; font-size: 7px; color: #888; margin-top: 8px; }
 </style></head><body>
-${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}
+${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}${(tx as any).is_bon ? `<div style="text-align:center;font-weight:900;color:#B45309;border:1px dashed #F59E0B;padding:4px 0;margin:6px 0;">BON — Sisa Rp ${((tx as any).total - ((tx as any).bon_paid ?? 0)).toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' • Jatuh tempo '+(tx as any).bon_due_date : ''}</div>` : ''}
 ${logoHtml}
 <h2>${esc(storeName.toUpperCase())}</h2>
 ${isA4 ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</div>' : ''}
@@ -147,7 +151,7 @@ export async function shareReceiptPdf(txId: number, paperSize?: PaperSize): Prom
 async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> {
   const db = getDb()
   const tx = db.getFirstSync<{
-    invoice: string; created_at: string; total: number; paid: number; change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string;
+    invoice: string; created_at: string; total: number; paid: number; change: number; payment_method: string; discount: number; customer_name?: string; voided?: number; void_reason?: string; is_bon?: number; bon_paid?: number; bon_due_date?: string | null;
   }>('SELECT * FROM transactions WHERE id = ?', [txId])
   if (!tx) return
   const items = db.getAllSync<{ product_name: string; qty: number; unit_price: number; modifiers_label: string; line_total: number }>(
@@ -167,6 +171,7 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
   type Line = { text: string; bold?: boolean; size: number; align?: 'left' | 'center' | 'right'; gap?: number }
   const lines: Line[] = []
   if (tx.voided) { lines.push({ text: '*** TRANSAKSI VOID ***', bold: true, size: 7, align: 'center' }); lines.push({ text: '-'.repeat(24), size: 5, align: 'center' }) }
+  if ((tx as any).is_bon) { const sisa = (tx as any).total - ((tx as any).bon_paid ?? 0); lines.push({ text: `BON — Sisa Rp ${sisa.toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' Tgl '+(tx as any).bon_due_date : ''}`, bold: true, size: 6, align: 'center' }) }
   lines.push({ text: storeName.toUpperCase().slice(0, 32), bold: true, size: dims.wMm <= 50 ? 8 : 9, align: 'center' })
   lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
   lines.push({ text: `No: ${tx.invoice}`, size: 6, align: 'left' })

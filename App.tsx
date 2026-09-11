@@ -16,9 +16,11 @@ import CashierScreen from './src/screens/CashierScreen'
 import HistoryScreen from './src/screens/HistoryScreen'
 import ManageProductsScreen from './src/screens/ManageProductsScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
+import KasbonScreen from './src/screens/KasbonScreen'
+import ShiftScreen from './src/screens/ShiftScreen'
 import FloatingBottomBar from './src/components/FloatingBottomBar'
 
-type Tab = 'kasir' | 'produk' | 'riwayat' | 'pengaturan'
+type Tab = 'kasir' | 'produk' | 'riwayat' | 'kasbon' | 'shift' | 'pengaturan'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -27,7 +29,6 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('kasir')
   const [refreshKey, setRefreshKey] = useState(0)
   const [dark, setDark] = useState(false)
-  // bump agar semua layar re-render saat tema berubah (colors adalah let-binding)
   const [themeTick, setThemeTick] = useState(0)
   const [produkModalOpen, setProdukModalOpen] = useState(false)
 
@@ -50,7 +51,6 @@ export default function App() {
     if (ready) SplashScreen.hideAsync().catch(() => {})
   }, [ready])
 
-  // Android back: kalau modal produk kebuka -> tutup, kalau bukan di Kasir -> balik ke Kasir, di Kasir -> tanya Keluar/Batal
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (produkModalOpen) {
@@ -114,6 +114,8 @@ export default function App() {
                 title={
                   tab === 'kasir' ? `${getSetting('storeName', 'Kasir Kita')} — Kasir`
                   : tab === 'produk' ? 'Kelola Produk & Menu'
+                  : tab === 'kasbon' ? 'Kasbon Pelanggan'
+                  : tab === 'shift' ? 'Shift & Tutup Kasir'
                   : tab === 'pengaturan' ? 'Pengaturan & Backup'
                   : 'Laporan & Riwayat'
                 }
@@ -125,6 +127,8 @@ export default function App() {
               {tab === 'kasir' && <CashierScreen onSold={() => setRefreshKey((k) => k + 1)} />}
               {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} />}
               {tab === 'riwayat' && <HistoryScreen key={refreshKey} />}
+              {tab === 'kasbon' && <KasbonScreen key={refreshKey} onChanged={() => setRefreshKey(k => k+1)} />}
+              {tab === 'shift' && <ShiftScreen key={refreshKey} />}
               {tab === 'pengaturan' && (
                 <SettingsScreen
                   dark={dark}

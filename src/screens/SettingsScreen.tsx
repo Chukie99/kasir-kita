@@ -270,7 +270,9 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="Kasir Kita v1.0.8" description="Kasir offline — thermal & label 57/80mm + A4" />
+        <List.Item title="Kasir Kita v1.0.9" description="Kasbon + Shift + 9 kertas 57/80/50mm + A4 — offline" />
+        <List.Item title="SOP Ganti HP" description="WA Device ID baru — 1x reset gratis. Chat WA di Lynk." />
+        <List.Item title="Direct Bluetooth" description="Tab Kasbon/Shift → Cetak Bluetooth (pair dulu di Settings HP)" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
       </Surface>
 

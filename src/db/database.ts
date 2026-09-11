@@ -107,6 +107,32 @@ export function initDatabase(): void {
   if (!txCols.includes('void_reason')) {
     d.execSync('ALTER TABLE transactions ADD COLUMN void_reason TEXT')
   }
+  if (!txCols.includes('is_bon')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN is_bon INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!txCols.includes('bon_paid')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN bon_paid INTEGER NOT NULL DEFAULT 0')
+  }
+  if (!txCols.includes('bon_due_date')) {
+    d.execSync('ALTER TABLE transactions ADD COLUMN bon_due_date TEXT')
+  }
+  d.execSync(`CREATE TABLE IF NOT EXISTS shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    opened_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    closed_at TEXT,
+    opening_cash INTEGER NOT NULL DEFAULT 0,
+    closing_cash INTEGER,
+    note TEXT,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed'))
+  )`)
+  d.execSync(`CREATE TABLE IF NOT EXISTS cash_movements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('in','out')),
+    amount INTEGER NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )`)
 }
 
 export function seedDemoData(): void {
