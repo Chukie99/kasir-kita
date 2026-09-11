@@ -18,9 +18,10 @@ import ManageProductsScreen from './src/screens/ManageProductsScreen'
 import SettingsScreen from './src/screens/SettingsScreen'
 import KasbonScreen from './src/screens/KasbonScreen'
 import ShiftScreen from './src/screens/ShiftScreen'
+import SupplierScreen from './src/screens/SupplierScreen'
 import FloatingBottomBar from './src/components/FloatingBottomBar'
 
-type Tab = 'kasir' | 'produk' | 'riwayat' | 'kasbon' | 'shift' | 'pengaturan'
+type Tab = 'kasir' | 'produk' | 'riwayat' | 'kasbon' | 'supplier' | 'shift' | 'pengaturan'
 
 export default function App() {
   const [ready, setReady] = useState(false)
@@ -115,6 +116,7 @@ export default function App() {
                   tab === 'kasir' ? `${getSetting('storeName', 'Kasir Kita')} — Kasir`
                   : tab === 'produk' ? 'Kelola Produk & Menu'
                   : tab === 'kasbon' ? 'Kasbon Pelanggan'
+                  : tab === 'supplier' ? 'Supplier & Laba Rugi'
                   : tab === 'shift' ? 'Shift & Tutup Kasir'
                   : tab === 'pengaturan' ? 'Pengaturan & Backup'
                   : 'Laporan & Riwayat'
@@ -128,6 +130,7 @@ export default function App() {
               {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} />}
               {tab === 'riwayat' && <HistoryScreen key={refreshKey} />}
               {tab === 'kasbon' && <KasbonScreen key={refreshKey} onChanged={() => setRefreshKey(k => k+1)} />}
+              {tab === 'supplier' && <SupplierScreen key={refreshKey} />}
               {tab === 'shift' && <ShiftScreen key={refreshKey} />}
               {tab === 'pengaturan' && (
                 <SettingsScreen

@@ -4,7 +4,7 @@ import { Text } from 'react-native-paper'
 import { MaterialCommunityIcons } from '@expo/vector-icons'
 import { colors } from '../theme/theme'
 
-export type Tab = 'kasir' | 'produk' | 'riwayat' | 'kasbon' | 'shift' | 'pengaturan'
+export type Tab = 'kasir' | 'produk' | 'riwayat' | 'kasbon' | 'supplier' | 'shift' | 'pengaturan'
 
 interface Props {
   active: Tab
@@ -16,6 +16,7 @@ const ITEMS: { id: Tab; label: string; icon: keyof typeof MaterialCommunityIcons
   { id: 'produk', label: 'Produk', icon: 'cube-outline' },
   { id: 'riwayat', label: 'Laporan', icon: 'chart-bar' },
   { id: 'kasbon', label: 'Kasbon', icon: 'hand-coin-outline' },
+  { id: 'supplier', label: 'Supplier', icon: 'truck-outline' },
   { id: 'shift', label: 'Shift', icon: 'clock-outline' },
   { id: 'pengaturan', label: 'Lainnya', icon: 'dots-horizontal' },
 ]
@@ -61,11 +62,11 @@ const styles = StyleSheet.create({
   },
   bar: {
     flexDirection: 'row',
-    gap: 2,
+    gap: 1,
     backgroundColor: colors.surface,
     borderRadius: 28,
-    paddingVertical: 8,
-    paddingHorizontal: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
     shadowColor: colors.text,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.15,
@@ -78,7 +79,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     borderRadius: 20,
     gap: 3,
     minWidth: 52,

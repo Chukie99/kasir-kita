@@ -5,6 +5,7 @@ import { colors } from '../theme/theme'
 import { exportDailyReport } from '../utils/export'
 import { createBackup, restoreFromSql } from '../utils/backup'
 import { getSetting, setSetting, getPaperSize, PAPER_OPTIONS, type PaperSize } from '../utils/settings'
+import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName } from '../utils/bluetooth'
 
 interface Props {
   dark: boolean
@@ -21,6 +22,9 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [editingLink, setEditingLink] = useState(false)
   const [paperSize, setPaperSize] = useState<PaperSize>(() => getPaperSize())
   const [logoUri, setLogoUri] = useState(() => getSetting('storeLogoUri', ''))
+  const [btAddr, setBtAddr] = useState(() => getSavedPrinter() || '')
+  const [btName, setBtName] = useState(() => getSavedPrinterName() || '')
+  const [editingBt, setEditingBt] = useState(false)
 
   const saveStore = () => {
     setSetting('storeName', storeName.trim())
@@ -220,6 +224,29 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
         />
       </Surface>
 
+      <Text style={styles.section}>Printer Bluetooth</Text>
+      <Surface style={styles.card} elevation={0}>
+        {!editingBt ? (
+          <List.Item
+            title={btAddr ? `${btName || 'Printer'} • ${btAddr}` : 'Belum diset — tap untuk set'}
+            description={btAddr ? 'Tap untuk ganti • Cetak Bluetooth akan pakai alamat ini (pair dulu di Settings HP)' : 'Isi alamat MAC printer (pair di Settings HP dulu). Fallback ke PDF kalau belum paired.'}
+            left={(p) => <List.Icon {...p} icon="printer-wireless" color={colors.green} />}
+            right={(p) => <List.Icon {...p} icon="pencil" color={colors.textMuted} />}
+            onPress={() => setEditingBt(true)}
+          />
+        ) : (
+          <View style={{ padding: 14, gap: 10 }}>
+            <Text style={{ fontSize: 12, color: colors.textMuted }}>Alamat MAC printer (contoh 66:12:11:22:33:44) — lihat di Bluetooth HP setelah Pair</Text>
+            <TextInput value={btName} onChangeText={setBtName} placeholder="Nama printer (opsional: RPP02N)" style={{ backgroundColor: colors.surface }} dense />
+            <TextInput value={btAddr} onChangeText={setBtAddr} placeholder="66:12:11:22:33:44" style={{ backgroundColor: colors.surface }} dense autoCapitalize="none" />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button mode="contained" onPress={() => { savePrinter(btAddr); savePrinterName(btName); setEditingBt(false); setStatus(btAddr ? `Printer disimpan: ${btName || btAddr}` : 'Printer dihapus — akan fallback PDF'); setTimeout(()=>setStatus(''),3000)}} compact>Simpan</Button>
+              <Button mode="text" onPress={() => { setBtAddr(getSavedPrinter()||''); setBtName(getSavedPrinterName()||''); setEditingBt(false)}} textColor={colors.textMuted} compact>Batal</Button>
+            </View>
+          </View>
+        )}
+      </Surface>
+
       <Text style={styles.section}>Data & Backup</Text>
       <Surface style={styles.card} elevation={0}>
         <List.Item
@@ -270,9 +297,9 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="Kasir Kita v1.0.9" description="Kasbon + Shift + 9 kertas 57/80/50mm + A4 — offline" />
+        <List.Item title="Kasir Kita v1.1.0" description="Kasbon agregat + Supplier hutang + Laba Rugi + BT + 9 kertas — offline" />
         <List.Item title="SOP Ganti HP" description="WA Device ID baru — 1x reset gratis. Chat WA di Lynk." />
-        <List.Item title="Direct Bluetooth" description="Tab Kasbon/Shift → Cetak Bluetooth (pair dulu di Settings HP)" />
+        <List.Item title="Direct Bluetooth" description="Set alamat MAC di atas → Cetak Bluetooth langsung (fallback PDF jika belum paired)" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
       </Surface>
 

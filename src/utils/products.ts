@@ -4,6 +4,7 @@ export interface ProductRow {
   id: number
   name: string
   price: number
+  cost: number
   category_name: string | null
   category_id: number | null
   is_active: number
@@ -13,7 +14,7 @@ export interface ProductRow {
 
 export function listAllProducts(): ProductRow[] {
   return getDb().getAllSync<ProductRow>(
-    `SELECT p.id, p.name, p.price, p.category_id, c.name AS category_name, p.is_active, p.stock, p.image_uri
+    `SELECT p.id, p.name, p.price, COALESCE(p.cost,0) AS cost, p.category_id, c.name AS category_name, p.is_active, p.stock, p.image_uri
      FROM products p LEFT JOIN categories c ON c.id = p.category_id
      ORDER BY p.is_active DESC, p.name`
   )
@@ -23,18 +24,20 @@ export function listCategories(): { id: number; name: string }[] {
   return getDb().getAllSync('SELECT id, name FROM categories ORDER BY name')
 }
 
-export function addProduct(name: string, price: number, categoryId: number | null, stock: number | null = null, imageUri: string | null = null): void {
+export function addProduct(name: string, price: number, categoryId: number | null, stock: number | null = null, imageUri: string | null = null): number {
   if (!name.trim()) throw new Error('Nama produk wajib diisi')
   if (!(price > 0)) throw new Error('Harga harus lebih dari 0')
-  getDb().runSync(
-    'INSERT INTO products (name, price, category_id, stock, image_uri) VALUES (?, ?, ?, ?, ?)',
-    [name.trim(), Math.round(price), categoryId, stock, imageUri]
+  const r = getDb().runSync(
+    'INSERT INTO products (name, price, cost, category_id, stock, image_uri) VALUES (?, ?, ?, ?, ?, ?)',
+    [name.trim(), Math.round(price), 0, categoryId, stock, imageUri]
   )
+  return Number((r as any).lastInsertRowId ?? 0)
 }
 
-export function updateProduct(id: number, name: string, price: number, categoryId: number | null, stock: number | null = null, imageUri: string | null = null): void {
+export function updateProduct(id: number, name: string, price: number, categoryId: number | null, stock: number | null = null, imageUri: string | null = null, cost: number | null = null): void {
   if (!name.trim()) throw new Error('Nama produk wajib diisi')
   if (!(price > 0)) throw new Error('Harga harus lebih dari 0')
+  if (cost !== null) getDb().runSync('UPDATE products SET cost=? WHERE id=?', [Math.max(0, Math.round(cost)), id])
   getDb().runSync(
     'UPDATE products SET name = ?, price = ?, category_id = ?, stock = ?, image_uri = ? WHERE id = ?',
     [name.trim(), Math.round(price), categoryId, stock, imageUri, id]
@@ -48,6 +51,10 @@ export function toggleProductActive(id: number, active: boolean): void {
 export function deleteProduct(id: number): void {
   // Hard delete — riwayat tetap aman karena transaction_items simpan product_name (string), bukan FK
   getDb().runSync('DELETE FROM products WHERE id = ?', [id])
+}
+
+export function setProductCost(id: number, cost: number): void {
+  getDb().runSync('UPDATE products SET cost=? WHERE id=?', [Math.max(0, Math.round(cost)), id])
 }
 
 export function addCategory(name: string): number {

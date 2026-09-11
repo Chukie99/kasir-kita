@@ -125,6 +125,46 @@ export function initDatabase(): void {
     note TEXT,
     status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','closed'))
   )`)
+
+  // v1.1.0: Master Pelanggan & Supplier/Hutang Kulakan
+  d.execSync(`CREATE TABLE IF NOT EXISTS customers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    phone TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )`)
+  d.execSync(`CREATE TABLE IF NOT EXISTS suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    phone TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )`)
+  d.execSync(`CREATE TABLE IF NOT EXISTS purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER REFERENCES suppliers(id) ON DELETE SET NULL,
+    supplier_name TEXT NOT NULL DEFAULT '',
+    total INTEGER NOT NULL,
+    paid INTEGER NOT NULL DEFAULT 0,
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )`)
+  d.execSync(`CREATE TABLE IF NOT EXISTS purchase_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    qty INTEGER NOT NULL,
+    cost INTEGER NOT NULL,
+    line_total INTEGER NOT NULL
+  )`)
+  // migrate products: add cost (modal) column guard
+  const prodCols2 = d.getAllSync<{ name: string }>("PRAGMA table_info(products)").map((c) => c.name)
+  if (!prodCols2.includes('cost')) {
+    d.execSync('ALTER TABLE products ADD COLUMN cost INTEGER NOT NULL DEFAULT 0')
+  }
+  // migrate transactions: ensure bon columns already done above
+
   d.execSync(`CREATE TABLE IF NOT EXISTS cash_movements (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,

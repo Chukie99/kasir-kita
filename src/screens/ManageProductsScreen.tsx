@@ -9,8 +9,8 @@ import {
 
 const rupiah = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID')
 
-interface EditingState { id: number | null; name: string; price: string; stock: string; imageUri: string | null; categoryId: number | null }
-const EMPTY_EDIT: EditingState = { id: null, name: '', price: '', stock: '', imageUri: null, categoryId: null }
+interface EditingState { id: number | null; name: string; price: string; cost: string; stock: string; imageUri: string | null; categoryId: number | null }
+const EMPTY_EDIT: EditingState = { id: null, name: '', price: '', cost: '', stock: '', imageUri: null, categoryId: null }
 
 export default function ManageProductsScreen({ onModalChange }: { onModalChange?: (open: boolean) => void }) {
   const [products, setProducts] = useState<ProductRow[]>(() => listAllProducts())
@@ -26,7 +26,7 @@ export default function ManageProductsScreen({ onModalChange }: { onModalChange?
   const openAdd = () => setEditing({ ...EMPTY_EDIT })
 
   const openEdit = (p: ProductRow) =>
-    setEditing({ id: p.id, name: p.name, price: String(p.price), stock: p.stock === null ? '' : String(p.stock), imageUri: p.image_uri, categoryId: p.category_id })
+    setEditing({ id: p.id, name: p.name, price: String(p.price), cost: String((p as any).cost ?? 0), stock: p.stock === null ? '' : String(p.stock), imageUri: p.image_uri, categoryId: p.category_id })
 
   const pickImage = async () => {
       try {
@@ -62,9 +62,9 @@ export default function ManageProductsScreen({ onModalChange }: { onModalChange?
     const stockVal = editing.stock.trim() === '' ? null : Number(editing.stock.replace(/\D/g, ''))
     try {
       if (editing.id === null) {
-        addProduct(editing.name, Number(editing.price.replace(/\D/g, '')), editing.categoryId, stockVal, editing.imageUri)
+        { const nid = addProduct(editing.name, Number(editing.price.replace(/\D/g, '')), editing.categoryId, stockVal, editing.imageUri); const c = Number(editing.cost.replace(/\D/g,'')||'0'); if (c>0 && nid) { const { setProductCost } = require('../utils/products'); try { setProductCost(nid, c) } catch {} } }
       } else {
-        updateProduct(editing.id, editing.name, Number(editing.price.replace(/\D/g, '')), editing.categoryId, stockVal, editing.imageUri)
+        updateProduct(editing.id, editing.name, Number(editing.price.replace(/\D/g, '')), editing.categoryId, stockVal, editing.imageUri, Number(editing.cost.replace(/\D/g,'')||'0'))
       }
       setEditing(null)
       refresh()
@@ -172,6 +172,9 @@ export default function ManageProductsScreen({ onModalChange }: { onModalChange?
               left={<TextInput.Affix text="Rp " />}
               style={{ backgroundColor: colors.surface, fontSize: 18, fontWeight: '800' }}
               placeholder="0" placeholderTextColor={colors.textMuted} />
+
+            <Text style={styles.label}>Modal / HPP (untuk hitung laba) — opsional</Text>
+            <TextInput value={editing.cost} onChangeText={(v) => setEditing({ ...editing, cost: v.replace(/\D/g,'') })} keyboardType="number-pad" left={<TextInput.Affix text="Rp " />} style={{ backgroundColor: colors.surface }} placeholder="0 jika tidak dihitung" />
 
             <Text style={styles.label}>Stok — jumlah barang tersedia</Text>
             <TextInput value={editing.stock}
