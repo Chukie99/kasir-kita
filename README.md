@@ -1,16 +1,16 @@
 # Kasir Kita — Kasir Offline untuk Warung, Kedai & Kafe
 
-**v1.0.8 (build 8)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
+**v1.0.9 (build 9)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
 
 ![Expo](https://img.shields.io/badge/Expo-57-black) ![RN](https://img.shields.io/badge/React_Native-0.86-blue) ![TS](https://img.shields.io/badge/TypeScript-strict-blue) ![Offline](https://img.shields.io/badge/Offline-100%25-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 **Harga Lynk.id: 49k early-bird → 99–149k lifetime (sekali bayar, tanpa langganan bulanan).**
 
-> **Kenapa beda dari Moka/Olsera/Pawoon (299k/bln/outlet)?** Data di HP sendiri, APK 77M ringan, jalan di Android 10, struk thermal 58/80mm + PDF A4, logo toko PNG, tanpa watermark/batas produk.
+> **Kenapa beda dari Moka/Olsera/Pawoon (299k/bln/outlet)?** Data di HP sendiri, APK 77M ringan, jalan di Android 10, 9 kertas thermal/label 57/80/50mm + Kasbon + Shift, logo PNG, tanpa watermark/batas produk.
 
 ---
 
-## ✨ Fitur v1.0.8
+## ✨ Fitur v1.0.9
 
 ### 🛒 Kasir — 1-Tap Jual (ala Kasir Pintar & Loyverse)
 - Grid produk **foto 96px** 2-kolom (3-kolom di tablet), nama & harga besar — **tap = +1** tanpa modal
@@ -18,7 +18,7 @@
 - Badge stok: `Habis` merah, `Sisa 2` kuning, `Stok 24` muted — stok habis tidak bisa tap
 - **Varian / Topping / Modifier**: Surabi (+Telor +3k), Mie Tek-Tek (Pedas Lv), Teh (Es/Panas)
 - **FAB Scan Barcode** (kamera) + **StickyCartBar pill navy** `bottom:84` — total + **Bayar** selalu visible, tidak ketutup
-- Checkout: Tunai/QRIS, diskon Rp, hitung kembalian, tombol nominal cepat, cetak/bagikan struk
+- Checkout: Tunai/QRIS/BON, diskon Rp/% , hitung kembalian, tombol nominal cepat, Atas Nama, Bon (DP + jatuh tempo), cetak/bagikan struk
 
 ### 📦 Kelola Produk & Menu
 - Tambah/edit produk: nama, harga, stok, **foto galeri (crop 1:1)**, kategori, `is_active`
@@ -27,8 +27,20 @@
 
 ### 📊 Laporan & Riwayat — Reprint Struk
 - Tabs **Hari Ini / Minggu Ini / Bulan Ini**, cards Transaksi/Omzet/Tunai/QRIS, banner diskon, **Top-5 Terlaris**
-- Tiap transaksi: invoice, items, jam • metode, total + **2 tombol: Cetak Ulang & Bagikan** (pakai `buildReceiptHtml` 58mm)
+- Tiap transaksi: invoice, items, jam • metode, total + BON badge `sisa Rp` + **Cetak Ulang / PDF / Share WA / Bayar Bon / Tagih WA** + Void
 - Export laporan **Excel/CSV** + **PDF**
+
+### 💳 Kasbon / Bon Pelanggan — Warung Banget
+- Di Kasir centang **Bon / Kasbon** (Atas Nama wajib + DP + Jatuh Tempo opsional) — bisa `paid < total`, sisa = `total - bon_paid`
+- Tab **Kasbon**: list bon belum lunas, **Bayar** (parsial/lunas) + **Tagih WA** (pesan otomatis + struk)
+- Di Riwayat: badge `BON sisa Rp` + detail `BON — Dibayar / Sisa / Tempo` + tombol Bayar/Tagih, struk BON (`BON Sisa` di teks/HTML/pdf-lib)
+- Banner `bon aktif • Sisa Rp` di Laporan biar gak lupa nagih
+
+### 🕐 Shift & Tutup Kasir — Audit Kas
+- **Buka Shift** (modal awal) → jualan → **Tutup Shift** (kas fisik) — tahu selisih laci
+- **Kas Masuk / Keluar** per shift (setoran, belanja)
+- Ringkasan shift: `Tunai (non-bon) / QRIS / VOID / Bon sisa global` + riwayat 10 shift
+- Tombol **Cetak Bluetooth** di Kasir sukses & Riwayat detail — pair dulu di Settings HP, fallback ke PDF/share kalau belum paired (`escPosReceipt` stub, next `react-native-ble-plx`)
 
 ### ⚙️ Pengaturan & Backup
 - **Nama toko** (muncul di header & struk) + **Logo struk PNG** (upload galeri → `pos_images/store_logo.png` → tampil di struk thermal/PDF)
@@ -42,9 +54,10 @@
 
 ### 🔐 Lisensi Offline Anti-Bajakan
 - Tiap HP punya **Device ID** `XXXX-XXXX-XXXX-XXXX` di layar aktivasi
-- Kode aktivasi = `HMAC-SHA256(secret, deviceId)` — validasi offline tanpa internet
-- Generate: `node keygen.mjs ABCD1234EFGH` atau buka `keygen-helper.html` (paste Device ID → Generate)
-- ⚠️ **Wajib ganti `APP_LICENSE_SECRET` di `src/license/license.ts` & `keygen.mjs` sebelum rilis publik!** Secret default `5E175D...` sudah di repo — rotate sebelum scale ads.
+- Token `base64(LICENSE|DEVICE|sig)` verify **Ed25519 `tweetnacl`** offline — anti decompile resell (bukan HMAC)
+- Buyer checkout Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** instant (tanpa tunggu email, 1 license = 1 device, `DEVICE_MISMATCH 403` jika beda HP)
+- SOP ganti HP: WA Device ID baru — **1× reset gratis** (tulis di deskripsi Lynk biar gak ribut)
+- Legacy `keygen.mjs` HMAC masih ada untuk owner-only.
 
 ### 🎨 UI/UX
 - **Pastel ColorHunt** #F5EFE6 (bg) #E8DFCA (chip) #AEBDCA (border) #7895B2 (action) #0F2440 (navy) — lembut di mata kasir seharian
@@ -84,7 +97,7 @@ eas build -p android --profile production # → .aab (Play Store)
 | `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
 | `production` | `.aab` | Upload Google Play |
 
-APK history: `apk/kasir-kita-v1.0.8.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
+APK history: `apk/kasir-kita-v1.0.9.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
 
 ## 🔐 Aktivasi — Ed25519 1 license = 1 device (Opsi A via Email)
 Buyer checkout di Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** (instant, tanpa tunggu email). Token `base64(LICENSE|DEVICE|sig)` verify `tweetnacl` offline. `DEVICE_MISMATCH 403` jika beda HP.
@@ -110,18 +123,23 @@ src/
 │   ├── ActivationGate.tsx      # kunci lisensi + input kode
 │   ├── CashierScreen.tsx       # search sticky + kategori swipe + grid + FAB scan + StickyCartBar
 │   ├── ManageProductsScreen.tsx# foto galeri + kategori + Favorit + low-stock
-│   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint/Bagikan per transaksi
-│   └── SettingsScreen.tsx      # nama toko + logo PNG + 9 ukuran 57×30..80×80+A4 (chip group) + backup/restore
+│   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint/Bagikan per transaksi + BON badge + Bayar/Tagih WA
+│   ├── KasbonScreen.tsx        # bon list + Bayar + Tagih WA
+│   ├── ShiftScreen.tsx         # Buka/Tutup Shift + Kas Masuk/Keluar + audit
+│   └── SettingsScreen.tsx      # nama toko + logo PNG + 9 ukuran 57×30..80×80+A4 (chip group) + backup/restore + SOP ganti HP
 ├── components/
-│   ├── FloatingBottomBar.tsx   # siluet outline 4 tab, fixed bottom:20
+│   ├── FloatingBottomBar.tsx   # 6 tab Kasir/Produk/Laporan/Kasbon/Shift/Lainnya
 │   ├── StickyCartBar.tsx       # pill navy bottom:84
 │   ├── ModifierSheet.tsx       # varian/topping
 │   └── CheckoutSheet.tsx       # bayar + kembalian
 ├── theme/theme.ts              # Pastel MD3 + Inter
 └── utils/
-    ├── pos.ts                  # cartTotals, checkout + void soft, customer_name, filter voided=0
+    ├── pos.ts                  # cartTotals, checkout + void + BON (is_bon/bon_paid/due), customer_name
     ├── products.ts             # CRUD produk/kategori, stock, favorite
-    ├── receipt.ts              # buildReceiptText/Html 9 ukuran + logo, pdf-lib MediaBox exact per mm, print/share PDF
+    ├── receipt.ts              # buildReceiptText/Html 9 ukuran + BON Sisa + logo, pdf-lib MediaBox exact per mm, print/share PDF
+    ├── kasbon.ts                 # payBon, listKasbon, kasbonSummary
+    ├── shifts.ts                 # openShift/closeShift/shiftSummary/cashMovements
+    ├── bluetooth.ts              # escPosReceipt + printViaBluetoothFallback (stub → PDF fallback)
     ├── backup.ts               # createBackup/restoreFromSql (SDK57 File/Directory/Paths)
     ├── export.ts               # exportDailyReport CSV + PDF
     └── settings.ts             # getSetting + PAPER_OPTIONS 9 ukuran + PaperSize + getPaperDims/normalize
@@ -146,6 +164,7 @@ Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px therm
 
 ## 📋 Changelog
 
+- **v1.0.9 (9)** — Kasbon/BON + Shift/Tutup Kasir + Kas Masuk/Keluar + Cetak Bluetooth (stub) + 6-tab nav + BON di struk (layak jual 99k)
 - **v1.0.8 (8)** — 9 ukuran kertas 57×30..80×80+A4 (chip group), PDF `pdf-lib mmToPt` exact per ukuran, GH Actions build (no EAS quota)
 - **v1.0.7 (7)** — PDF thermal `pdf-lib` MediaBox 164pt (fix expo-print A4 595)
 - **v1.0.6 (6)** — `width/height` expo-print attempt (masih A4, di-fix 1.0.7)
