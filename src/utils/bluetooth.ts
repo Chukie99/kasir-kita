@@ -1,7 +1,7 @@
-// Bluetooth ESC/POS — v1.1.2 DantSu Classic SPP (BluetoothPrintersConnections)
+// Bluetooth ESC/POS — v1.1.3 DantSu Classic SPP (BluetoothPrintersConnections)
 // Flow: Pair dulu di Settings HP (PIN 0000/1234) -> DantSu getList() paired -> print via EscPosPrinter
-// Aman anti-FC: NativeModules lazy, fallback ke PDF/share kalau belum paired / module belum ada.
-import { Platform, PermissionsAndroid } from 'react-native'
+// FIX 18:48: hapus expo-intent-launcher (biang FC AnyTypeProvider) — ganti Linking.sendIntent
+import { Platform, PermissionsAndroid, Linking } from 'react-native'
 import { getSetting, setSetting } from './settings'
 
 export type BtDevice = { id: string; name: string | null; rssi?: number | null }
@@ -43,7 +43,6 @@ export async function requestBtPermissions(): Promise<boolean> {
 export async function listPairedPrinters(): Promise<BtDevice[]> {
   try {
     await requestBtPermissions()
-    // lazy — biar app tetap kebuka walau native belum kepasang
     const { NativeModules } = await import('react-native')
     const mod: any = (NativeModules as any).DantsuPrinter
     if (!mod || !mod.listPairedPrinters) return []
@@ -70,13 +69,18 @@ export async function printViaBluetoothFallback(text: string): Promise<'shared'|
   return r === 'no_printer' ? ('unsupported' as any) : 'shared'
 }
 
-// alias biar Cashier/History lama tetap work
 export const connectAndPrint = printViaBluetooth
 
 export async function openSystemBluetoothSettings() {
   try {
-    const IntentLauncher: any = await import('expo-intent-launcher')
-    // @ts-ignore
-    await IntentLauncher.startActivityAsync(IntentLauncher.ActivityAction.BLUETOOTH_SETTINGS)
-  } catch {}
+    // tanpa expo-intent-launcher (biang FC) — pakai Linking native
+    const anyLinking: any = Linking as any
+    if (anyLinking.sendIntent) {
+      await anyLinking.sendIntent('android.settings.BLUETOOTH_SETTINGS')
+    } else {
+      await Linking.openSettings()
+    }
+  } catch {
+    try { await Linking.openSettings() } catch {}
+  }
 }
