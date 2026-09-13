@@ -8,7 +8,7 @@ import { voidTransaction } from '../utils/pos'
 import { payBon } from '../utils/kasbon'
 import { buildReceiptText, printReceipt, shareReceiptPdf } from '../utils/receipt'
 import { shareReceipt } from '../utils/export'
-import { printViaBluetoothFallback } from '../utils/bluetooth'
+import { printViaBluetooth, getSavedPrinter, openSystemBluetoothSettings } from '../utils/bluetooth'
 
 type Period = 'today' | 'week' | 'month'
 interface Row {
@@ -196,7 +196,21 @@ export default function HistoryScreen() {
               </View>
             ) : null}
             <View style={{ flexDirection:'row', gap:10, marginTop:6 }}>
-              <Button mode="outlined" icon="bluetooth" onPress={async () => { try { const r = await printViaBluetoothFallback(buildReceiptText(detail.id)); if (r==='shared') await shareReceiptPdf(detail.id); } catch(e:any){ Alert.alert('Info', 'Belum paired — fallback ke PDF/share. Pasangkan printer di Bluetooth settings dulu.') } }} style={{ flex:1 }}>Cetak Bluetooth</Button>
+              <Button mode="outlined" icon="bluetooth" onPress={async () => {
+                if (!detail) return
+                if (!getSavedPrinter()) {
+                  Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
+                    { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
+                    { text: 'Batal', style: 'cancel' },
+                  ])
+                  return
+                }
+                try {
+                  const r = await printViaBluetooth(buildReceiptText(detail.id))
+                  if (r==='shared') await shareReceiptPdf(detail.id)
+                  else if (r==='no_printer') Alert.alert('Belum paired', 'Pilih printer di Pengaturan > Cari Printer Paired dulu')
+                } catch(e:any){ Alert.alert('Info', 'Gagal cetak Bluetooth — fallback PDF. Pastikan sudah Pair di HP.') }
+              }} style={{ flex:1 }}>Cetak Bluetooth (DantSu)</Button>
             </View>
             <View style={styles.detailBtns}>
               <Button mode="outlined" icon="printer" onPress={async () => { try { await printReceipt(detail.id) } catch (e: any) { Alert.alert('Gagal cetak', String(e?.message || e)) } }} style={{ flex: 1 }}>Cetak Ulang</Button>

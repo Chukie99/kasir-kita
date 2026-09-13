@@ -2,20 +2,23 @@
   "expo": {
     "name": "Kasir Kita",
     "slug": "pos-umkm-android",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.chukie99.posumkm",
-      "versionCode": 11,
+      "versionCode": 12,
       "adaptiveIcon": {
         "backgroundColor": "#7895B2",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN"
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN"
       ]
     },
     "plugins": [
@@ -23,7 +26,8 @@
       "expo-sharing",
       "expo-document-picker",
       "expo-image-picker",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      "./expo-plugins/with-dantsu"
     ],
     "owner": "chuckie99",
     "extra": {

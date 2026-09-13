@@ -7,7 +7,7 @@ import { listCategories } from '../utils/products'
 import StickyCartBar, { rupiah } from '../components/StickyCartBar'
 import CheckoutSheet from '../components/CheckoutSheet'
 import { buildReceiptText, printReceipt } from '../utils/receipt'
-import { printViaBluetoothFallback } from '../utils/bluetooth'
+import { printViaBluetooth, getSavedPrinter, openSystemBluetoothSettings } from '../utils/bluetooth'
 import { shareReceipt } from '../utils/export'
 
 export default function CashierScreen({ onSold }: { onSold: () => void }) {
@@ -167,7 +167,27 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
           </View>
         )}
         <View style={styles.successBtnRow}>
-          <Button mode="outlined" icon="bluetooth" onPress={async () => { if (success?.txId) { try { const r = await printViaBluetoothFallback(buildReceiptText(success.txId)); if (r==='shared') await printReceipt(success.txId); } catch{} } }} style={{ flex: 1 }}>
+          <Button mode="outlined" icon="bluetooth" onPress={async () => {
+            if (!success?.txId) return
+            const txt = buildReceiptText(success.txId)
+            if (!getSavedPrinter()) {
+              const { Alert } = await import('react-native')
+              Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
+                { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
+                { text: 'Buka Pengaturan', onPress: () => {} },
+                { text: 'Batal', style: 'cancel' },
+              ])
+              return
+            }
+            try {
+              const r = await printViaBluetooth(txt)
+              if (r === 'shared') await printReceipt(success.txId)
+              else if (r === 'no_printer') {
+                const { Alert } = await import('react-native')
+                Alert.alert('Belum paired', 'Pilih printer di Pengaturan > Cari Printer Paired dulu')
+              }
+            } catch {}
+          }} style={{ flex: 1 }}>
             Bluetooth
           </Button>
           <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch {} }} style={{ flex: 1 }}>

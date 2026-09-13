@@ -7,7 +7,7 @@ import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRan
 import DatePickerModal from '../components/DatePickerModal'
 import { createBackup, restoreFromSql } from '../utils/backup'
 import { getSetting, setSetting, getPaperSize, PAPER_OPTIONS, type PaperSize } from '../utils/settings'
-import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName } from '../utils/bluetooth'
+import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, openSystemBluetoothSettings, type BtDevice } from '../utils/bluetooth'
 
 interface Props {
   dark: boolean
@@ -27,6 +27,8 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [btAddr, setBtAddr] = useState(() => getSavedPrinter() || '')
   const [btName, setBtName] = useState(() => getSavedPrinterName() || '')
   const [editingBt, setEditingBt] = useState(false)
+  const [paired, setPaired] = useState<BtDevice[]>([])
+  const [scanning, setScanning] = useState(false)
   // Laporan periode — CSV (anti-FC, tanpa xlsx)
   const _initR = rangeThisMonth()
   const [rangeFrom, setRangeFrom] = useState(_initR.from)
@@ -246,27 +248,29 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
         />
       </Surface>
 
-      <Text style={styles.section}>Printer Bluetooth</Text>
+      <Text style={styles.section}>Printer Bluetooth (DantSu ESC/POS — Classic SPP)</Text>
       <Surface style={styles.card} elevation={0}>
-        {!editingBt ? (
-          <List.Item
-            title={btAddr ? `${btName || 'Printer'} • ${btAddr}` : 'Belum diset — tap untuk set'}
-            description={btAddr ? 'Tap untuk ganti • Cetak Bluetooth akan pakai alamat ini (pair dulu di Settings HP)' : 'Isi alamat MAC printer (pair di Settings HP dulu). Fallback ke PDF kalau belum paired.'}
-            left={(p) => <List.Icon {...p} icon="printer-wireless" color={colors.green} />}
-            right={(p) => <List.Icon {...p} icon="pencil" color={colors.textMuted} />}
-            onPress={() => setEditingBt(true)}
-          />
-        ) : (
-          <View style={{ padding: 14, gap: 10 }}>
-            <Text style={{ fontSize: 12, color: colors.textMuted }}>Alamat MAC printer (contoh 66:12:11:22:33:44) — lihat di Bluetooth HP setelah Pair</Text>
-            <TextInput value={btName} onChangeText={setBtName} placeholder="Nama printer (opsional: RPP02N)" style={{ backgroundColor: colors.surface }} dense />
-            <TextInput value={btAddr} onChangeText={setBtAddr} placeholder="66:12:11:22:33:44" style={{ backgroundColor: colors.surface }} dense autoCapitalize="none" />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button mode="contained" onPress={() => { savePrinter(btAddr); savePrinterName(btName); setEditingBt(false); setStatus(btAddr ? `Printer disimpan: ${btName || btAddr}` : 'Printer dihapus — akan fallback PDF'); setTimeout(()=>setStatus(''),3000)}} compact>Simpan</Button>
-              <Button mode="text" onPress={() => { setBtAddr(getSavedPrinter()||''); setBtName(getSavedPrinterName()||''); setEditingBt(false)}} textColor={colors.textMuted} compact>Batal</Button>
-            </View>
+        <View style={{ padding: 14, gap: 10 }}>
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>Langkah 1: Pair dulu di Bluetooth HP (PIN 0000/1234)  •  2: Tap Cari Paired → pilih RPP02N/ZJ-5802  •  3: Cetak di Kasir/Riwayat</Text>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: btAddr ? colors.greenDark : colors.textMuted }}>{btAddr ? `✓ ${btName || 'Printer'} • ${btAddr}` : 'Belum ada printer tersimpan'}</Text>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <Button mode="contained" icon="bluetooth" loading={scanning} disabled={scanning} onPress={async()=>{ setScanning(true); setStatus('Mencari printer paired (DantSu)...'); try{ const list=await listPairedPrinters(); setPaired(list); setStatus(list.length ? `Ketemu ${list.length} paired — tap untuk simpan` : 'Tidak ada paired. Pair dulu di Bluetooth HP (PIN 0000/1234) lalu Coba Lagi') } catch(e:any){ setStatus('Gagal cari: '+(e?.message||String(e)))} finally{ setScanning(false); setTimeout(()=>setStatus(''),4000) }}} compact>Cari Printer Paired 🔍</Button>
+            <Button mode="outlined" icon="cog" onPress={async()=>{ await openSystemBluetoothSettings(); setStatus('Buka Bluetooth HP — Pair RPP02N dulu lalu balik ke sini') ; setTimeout(()=>setStatus(''),4000)}} compact>Buka Bluetooth HP</Button>
           </View>
-        )}
+          {paired.length ? <View style={{ gap: 6, marginTop: 4 }}>{paired.map(d=>{ const active=d.id===btAddr; return (<Pressable key={d.id} onPress={()=>{ savePrinter(d.id); savePrinterName(d.name||''); setBtAddr(d.id); setBtName(d.name||''); setStatus(`Printer disimpan: ${d.name||d.id}`); setTimeout(()=>setStatus(''),3000)}} style={{ padding: 10, borderRadius: 10, borderWidth: 1.5, borderColor: active ? colors.green : colors.border, backgroundColor: active ? '#EAF4E8' : colors.surface }}><Text style={{ fontWeight:'800', color: colors.text }}>{d.name || 'Printer'} • {d.id} {active ? '✓' : ''}</Text></Pressable>)})}</View> : null}
+          {!editingBt ? (
+            <Pressable onPress={()=>setEditingBt(true)} style={{ padding: 8 }}><Text style={{ fontSize: 12, color: colors.textMuted, textAlign:'center' }}>Atau isi manual MAC → tap disini</Text></Pressable>
+          ) : (
+            <View style={{ gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10 }}>
+              <TextInput value={btName} onChangeText={setBtName} placeholder="Nama (RPP02N)" style={{ backgroundColor: colors.surface }} dense />
+              <TextInput value={btAddr} onChangeText={setBtAddr} placeholder="66:12:11:22:33:44" style={{ backgroundColor: colors.surface }} dense autoCapitalize="none" />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button mode="contained" onPress={() => { savePrinter(btAddr); savePrinterName(btName); setEditingBt(false); setStatus(btAddr ? `Printer disimpan: ${btName || btAddr}` : 'Printer dihapus — fallback PDF'); setTimeout(()=>setStatus(''),3000)}} compact>Simpan Manual</Button>
+                <Button mode="text" onPress={() => { setBtAddr(getSavedPrinter()||''); setBtName(getSavedPrinterName()||''); setEditingBt(false)}} textColor={colors.textMuted} compact>Batal</Button>
+              </View>
+            </View>
+          )}
+        </View>
       </Surface>
 
       <Text style={styles.section}>Laporan & Ekspor (CSV Periode)</Text>
