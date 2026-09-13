@@ -45,7 +45,7 @@ export function buildReceiptText(txId: number): string {
     rows,
     line,
     ...(tx.discount > 0 ? [pad('Diskon', '-' + rp(tx.discount))] : []),
-    pad('Total', rp(tx.total)),
+    pad('TOTAL', rp(tx.total)),
     pad(tx.payment_method === 'cash' ? 'Tunai' : 'QRIS', rp(tx.paid)),
     ...(tx.payment_method === 'cash' ? [pad('Kembalian', rp(tx.change))] : []),
     line,
@@ -92,10 +92,14 @@ export async function buildReceiptHtmlAsync(txId: number, paperSize?: PaperSize)
   const uri = getSetting('storeLogoUri','')
   if (uri && html.includes(uri)) return html.replaceAll(uri, dataUri)
   if (html.includes('<img')) return html
-  return html.replace('<h2>', `<div style="text-align:center;margin-bottom:6px"><img src="${dataUri}" style="max-width:72px;max-height:48px;object-fit:contain"/></div><h2>`)
+  const size: PaperSize = paperSize ?? getPaperSize()
+  const dims = getPaperDims(size)
+  const maxW = dims.wMm >= 70 ? '110px' : '84px'
+  const maxH = dims.wMm >= 70 ? '70px' : '56px'
+  return html.replace('<h2>', `<div style="text-align:center;margin-bottom:6px"><img src="${dataUri}" style="max-width:${maxW};max-height:${maxH};object-fit:contain"/></div><h2>`)
 }
 
-/** Build receipt HTML — supports all thermal sizes + A4 */
+/** Build receipt HTML — 100% full width, 0 margin, larger font for thermal receipt */
 export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   const db = getDb()
   const tx = db.getFirstSync<{
@@ -112,12 +116,15 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   const size: PaperSize = paperSize ?? getPaperSize()
   const dims = getPaperDims(size)
   const isA4 = size === 'A4'
-  const width = isA4 ? '170mm' : `${Math.max(46, dims.wMm - 4)}mm`
-  const fontSize = isA4 ? '12px' : dims.wMm <= 50 ? '9px' : '10px'
+  const isWide = dims.wMm >= 70
+  const width = isA4 ? '180mm' : '100%'
+  const fontSize = isA4 ? '12px' : isWide ? '12px' : '11px'
   const pageSize = isA4 ? 'A4 portrait' : `${dims.wMm}mm ${dims.hMm}mm`
-  const pageMargin = isA4 ? '12mm' : '2mm'
+  const pageMargin = isA4 ? '10mm' : '0mm'
+  const logoMaxW = isA4 ? '120px' : isWide ? '110px' : '84px'
+  const logoMaxH = isA4 ? '80px' : isWide ? '70px' : '56px'
   const logoHtml = logoUri
-    ? `<div style="text-align:center;margin-bottom:6px"><img src="${logoUri}" style="max-width:${isA4 ? '120px' : '72px'};max-height:${isA4 ? '80px' : '48px'};object-fit:contain"/></div>`
+    ? `<div style="text-align:center;margin-bottom:6px"><img src="${logoUri}" style="max-width:${logoMaxW};max-height:${logoMaxH};object-fit:contain"/></div>`
     : ''
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
   const rows = items.map((i) => {
@@ -127,21 +134,21 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; width: 100%; }
   @page { size: ${pageSize}; margin: ${pageMargin}; }
-  body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #111; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  h2 { text-align: center; margin: 4px 0 2px; letter-spacing: 1px; font-size: ${isA4 ? '16px' : dims.wMm <= 50 ? '11px' : '13px'}; }
-  .store-sub { text-align: center; font-size: 9px; color: #555; margin-bottom: 6px; }
-  .void { text-align:center; font-weight:900; color:#B91C1C; border:2px solid #B91C1C; padding:4px 0; margin:6px 0; letter-spacing:1px; }
-  .line { border-top: 1px dashed #000; margin: 6px 0; }
-  .meta { font-size: ${isA4 ? '10px' : '8px'}; word-break: break-word; }
-  .item { display: flex; justify-content: space-between; gap: 6px; margin: 3px 0; }
-  .mod { color: #444; padding-left: 8px; font-size: 9px; }
-  .tot { display: flex; justify-content: space-between; margin: 2px 0; font-weight: bold; }
-  .center { text-align: center; font-size: 9px; }
-  .badge-size { text-align: center; font-size: 7px; color: #888; margin-top: 8px; }
+  body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #000; padding: ${isA4 ? '0' : '2mm 1mm'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h2 { text-align: center; margin: 2px 0 1px; letter-spacing: 0.5px; font-size: ${isA4 ? '18px' : isWide ? '16px' : '14px'}; font-weight: 900; }
+  .store-sub { text-align: center; font-size: 9px; color: #444; margin-bottom: 4px; }
+  .void { text-align:center; font-weight:900; color:#B91C1C; border:2px solid #B91C1C; padding:4px 0; margin:4px 0; letter-spacing:1px; }
+  .line { border-top: 1px dashed #000; margin: 4px 0; }
+  .meta { font-size: ${isA4 ? '11px' : '9px'}; word-break: break-word; line-height: 1.3; }
+  .item { display: flex; justify-content: space-between; gap: 4px; margin: 2px 0; font-size: ${fontSize}; }
+  .mod { color: #333; padding-left: 6px; font-size: 9px; }
+  .tot { display: flex; justify-content: space-between; margin: 2px 0; font-weight: 900; font-size: ${isA4 ? '14px' : isWide ? '13px' : '12px'}; }
+  .center { text-align: center; font-size: 9px; margin-top: 6px; }
+  .badge-size { text-align: center; font-size: 7px; color: #666; margin-top: 6px; }
 </style></head><body>
-${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}${(tx as any).is_bon ? `<div style="text-align:center;font-weight:900;color:#B45309;border:1px dashed #F59E0B;padding:4px 0;margin:6px 0;">BON — Sisa Rp ${((tx as any).total - ((tx as any).bon_paid ?? 0)).toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' • Jatuh tempo '+(tx as any).bon_due_date : ''}</div>` : ''}
+${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}${(tx as any).is_bon ? `<div style="text-align:center;font-weight:900;color:#B45309;border:1px dashed #F59E0B;padding:3px 0;margin:4px 0;">BON — Sisa Rp ${((tx as any).total - ((tx as any).bon_paid ?? 0)).toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' • Tgl '+(tx as any).bon_due_date : ''}</div>` : ''}
 ${logoHtml}
 <h2>${esc(storeName.toUpperCase())}</h2>
 ${isA4 ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</div>' : ''}
@@ -149,12 +156,12 @@ ${isA4 ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</di
 <div class="line"></div>
 ${rows}
 <div class="line"></div>
-${tx.discount > 0 ? `<div class="tot"><span>Diskon</span><span>-${rp(tx.discount)}</span></div>` : ''}
-<div class="tot"><span>Total</span><span>${rp(tx.total)}</span></div>
-<div class="tot"><span>${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'}</span><span>${rp(tx.paid)}</span></div>
-${tx.payment_method === 'cash' ? `<div class="tot"><span>Kembalian</span><span>${rp(tx.change)}</span></div>` : ''}
+${tx.discount > 0 ? `<div class="tot" style="font-weight:normal;font-size:10px;"><span>Diskon</span><span>-${rp(tx.discount)}</span></div>` : ''}
+<div class="tot"><span>TOTAL</span><span>${rp(tx.total)}</span></div>
+<div class="tot" style="font-weight:normal;font-size:10px;"><span>${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'}</span><span>${rp(tx.paid)}</span></div>
+${tx.payment_method === 'cash' ? `<div class="tot" style="font-weight:normal;font-size:10px;"><span>Kembalian</span><span>${rp(tx.change)}</span></div>` : ''}
 <div class="line"></div>
-<p class="center">Terima kasih! Semoga puas<br/>dengan layanan kami</p>
+<p class="center">Terima kasih!<br/>Semoga puas dengan layanan kami</p>
 <div class="badge-size">Kertas: ${size} (${dims.wMm}×${dims.hMm} mm)</div>
 </body></html>`
 }
@@ -218,44 +225,49 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
       if (!bytes) { try { const FS:any=await import('expo-file-system/legacy'); const b64=await FS.readAsStringAsync(uri,{encoding:'base64' as any}); const bin=typeof atob!=='undefined'?atob(b64):(globalThis as any).atob(b64); bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i) } catch {}}
       if (bytes) {
         try { logoImg = await pdf.embedPng(bytes) } catch { try { logoImg = await pdf.embedJpg(bytes) } catch {} }
-        if (logoImg) { const maxW = mmToPt(dims.wMm*0.4); const iw=logoImg.width, ih=logoImg.height; const scale=Math.min(1, maxW/iw, mmToPt(12)/ih); logoDims={ w: iw*scale, h: ih*scale } }
+        if (logoImg) {
+          const maxW = mmToPt(dims.wMm * 0.5)
+          const iw=logoImg.width, ih=logoImg.height
+          const scale=Math.min(1, maxW/iw, mmToPt(16)/ih)
+          logoDims={ w: iw*scale, h: ih*scale }
+        }
       }
     }
   } catch {}
   const pageWidth = mmToPt(dims.wMm)
   const pageHeight = mmToPt(dims.hMm)
-  const margin = mmToPt(2)
+  const margin = mmToPt(1)
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
   type Line = { text: string; bold?: boolean; size: number; align?: 'left' | 'center' | 'right'; gap?: number }
   const lines: Line[] = []
-  if (tx.voided) { lines.push({ text: '*** TRANSAKSI VOID ***', bold: true, size: 7, align: 'center' }); lines.push({ text: '-'.repeat(24), size: 5, align: 'center' }) }
-  if ((tx as any).is_bon) { const sisa = (tx as any).total - ((tx as any).bon_paid ?? 0); lines.push({ text: `BON — Sisa Rp ${sisa.toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' Tgl '+(tx as any).bon_due_date : ''}`, bold: true, size: 6, align: 'center' }) }
-  lines.push({ text: storeName.toUpperCase().slice(0, 32), bold: true, size: dims.wMm <= 50 ? 8 : 9, align: 'center' })
-  lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
-  lines.push({ text: `No: ${tx.invoice}`, size: 6, align: 'left' })
-  if (tx.customer_name) lines.push({ text: `Atas Nama: ${tx.customer_name}`.slice(0, 36), size: 6, align: 'left' })
-  lines.push({ text: `Tgl: ${tx.created_at.slice(0, 16)}  ${size}`, size: 5, align: 'left' })
-  lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
-  const maxChars = dims.wMm <= 50 ? 20 : dims.wMm <= 57 ? 24 : 32
+  if (tx.voided) { lines.push({ text: '*** TRANSAKSI VOID ***', bold: true, size: 8, align: 'center' }); lines.push({ text: '-'.repeat(28), size: 6, align: 'center' }) }
+  if ((tx as any).is_bon) { const sisa = (tx as any).total - ((tx as any).bon_paid ?? 0); lines.push({ text: `BON — Sisa Rp ${sisa.toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' Tgl '+(tx as any).bon_due_date : ''}`, bold: true, size: 7, align: 'center' }) }
+  lines.push({ text: storeName.toUpperCase().slice(0, 32), bold: true, size: dims.wMm <= 50 ? 9 : 11, align: 'center' })
+  lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
+  lines.push({ text: `No: ${tx.invoice}`, size: 7, align: 'left' })
+  if (tx.customer_name) lines.push({ text: `Atas Nama: ${tx.customer_name}`.slice(0, 36), size: 7, align: 'left' })
+  lines.push({ text: `Tgl: ${tx.created_at.slice(0, 16)}  ${size}`, size: 6, align: 'left' })
+  lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
+  const maxChars = dims.wMm <= 50 ? 22 : dims.wMm <= 57 ? 28 : 36
   for (const it of items) {
     const mods = it.modifiers_label ? ` +${it.modifiers_label}` : ''
     let name = `${it.qty}x ${it.product_name}${mods}`
-    while (name.length > maxChars) { lines.push({ text: name.slice(0, maxChars), size: 6 }); name = name.slice(maxChars) }
-    lines.push({ text: name, size: 6 })
-    lines.push({ text: rp(it.line_total), size: 6, align: 'right', gap: 0 })
+    while (name.length > maxChars) { lines.push({ text: name.slice(0, maxChars), size: 7 }); name = name.slice(maxChars) }
+    lines.push({ text: name, size: 7 })
+    lines.push({ text: rp(it.line_total), bold: true, size: 7, align: 'right', gap: 0 })
   }
-  lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
-  if (tx.discount > 0) lines.push({ text: `Diskon -${rp(tx.discount)}`, size: 6, align: 'right' })
-  lines.push({ text: `Total ${rp(tx.total)}`, bold: true, size: 7, align: 'right' })
-  lines.push({ text: `${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'} ${rp(tx.paid)}`, size: 6, align: 'right' })
-  if (tx.payment_method === 'cash') lines.push({ text: `Kembalian ${rp(tx.change)}`, size: 6, align: 'right' })
-  lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
-  lines.push({ text: 'Terima kasih!', size: 6, align: 'center' })
+  lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
+  if (tx.discount > 0) lines.push({ text: `Diskon -${rp(tx.discount)}`, size: 7, align: 'right' })
+  lines.push({ text: `TOTAL ${rp(tx.total)}`, bold: true, size: 9, align: 'right' })
+  lines.push({ text: `${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'} ${rp(tx.paid)}`, size: 7, align: 'right' })
+  if (tx.payment_method === 'cash') lines.push({ text: `Kembalian ${rp(tx.change)}`, size: 7, align: 'right' })
+  lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
+  lines.push({ text: 'Terima kasih!', size: 7, align: 'center' })
 
-  const estH = lines.reduce((h, l) => h + (l.gap === 0 ? 6 : l.size + 2.5), 10) + 8
+  const estH = lines.reduce((h, l) => h + (l.gap === 0 ? 7 : l.size + 3), 10) + 8
   const useH = Math.max(pageHeight, estH + margin * 2)
   const page = pdf.addPage([pageWidth, useH])
-  let curY = useH - 7
+  let curY = useH - 6
   if (logoImg && logoDims) {
     const lx = (pageWidth - logoDims.w)/2
     page.drawImage(logoImg, { x: lx, y: curY - logoDims.h, width: logoDims.w, height: logoDims.h })
@@ -268,7 +280,7 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
     if (l.align === 'center') x = (pageWidth - textWidth) / 2
     else if (l.align === 'right') x = pageWidth - margin - textWidth
     page.drawText(l.text, { x, y: curY, size: l.size, font: f, color: rgb(0, 0, 0) })
-    curY -= (l.gap === 0 ? 6 : l.size + 2.5)
+    curY -= (l.gap === 0 ? 7 : l.size + 3)
   }
   for (const l of lines) drawLine(l)
   const bytes = await pdf.save()
