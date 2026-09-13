@@ -3,6 +3,8 @@ import { View, StyleSheet, ScrollView, Linking, Pressable, Alert, Image } from '
 import { Text, Surface, Button, List, TextInput } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import { exportDailyReport } from '../utils/export'
+import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRange } from '../utils/export_period'
+import DatePickerModal from '../components/DatePickerModal'
 import { createBackup, restoreFromSql } from '../utils/backup'
 import { getSetting, setSetting, getPaperSize, PAPER_OPTIONS, type PaperSize } from '../utils/settings'
 import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName } from '../utils/bluetooth'
@@ -25,6 +27,26 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [btAddr, setBtAddr] = useState(() => getSavedPrinter() || '')
   const [btName, setBtName] = useState(() => getSavedPrinterName() || '')
   const [editingBt, setEditingBt] = useState(false)
+  // Laporan periode — CSV (anti-FC, tanpa xlsx)
+  const _initR = rangeThisMonth()
+  const [rangeFrom, setRangeFrom] = useState(_initR.from)
+  const [rangeTo, setRangeTo] = useState(_initR.to)
+  const [period, setPeriod] = useState<'today'|'7days'|'month'|'custom'>('month')
+  const [showFromCal, setShowFromCal] = useState(false)
+  const [showToCal, setShowToCal] = useState(false)
+  const [exporting, setExporting] = useState(false)
+  const [fromErr, setFromErr] = useState('')
+  const [toErr, setToErr] = useState('')
+  const applyPeriod = (p: 'today'|'7days'|'month'|'custom') => {
+    setPeriod(p)
+    if (p==='today') { const r=rangeToday(); setRangeFrom(r.from); setRangeTo(r.to) }
+    else if (p==='7days') { const r=range7Days(); setRangeFrom(r.from); setRangeTo(r.to) }
+    else if (p==='month') { const r=rangeThisMonth(); setRangeFrom(r.from); setRangeTo(r.to) }
+  }
+  const fmtDate = (iso: string) => { try { const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) } catch { return iso } }
+  const isValidISO = (s:string) => /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(new Date(s+'T00:00:00').getTime())
+  const onChangeFrom = (v:string) => { setRangeFrom(v); if(isValidISO(v)){ setFromErr(''); setPeriod('custom')} else if(v) setFromErr('Format YYYY-MM-DD')}
+  const onChangeTo = (v:string) => { setRangeTo(v); if(isValidISO(v)){ setToErr(''); setPeriod('custom')} else if(v) setToErr('Format YYYY-MM-DD')}
 
   const saveStore = () => {
     setSetting('storeName', storeName.trim())
@@ -247,6 +269,49 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
         )}
       </Surface>
 
+      <Text style={styles.section}>Laporan & Ekspor (CSV Periode)</Text>
+      <Surface style={styles.card} elevation={0}>
+        <View style={{ padding: 14, gap: 10 }}>
+          <Text style={{ fontSize: 12, fontWeight: '800', color: colors.text }}>Periode</Text>
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            {(['today','7days','month','custom'] as const).map(k => {
+              const label = k==='today' ? 'Hari ini' : k==='7days' ? '7 Hari' : k==='month' ? 'Bulan ini' : 'Custom'
+              const active = period===k
+              return (
+                <Pressable key={k} onPress={() => applyPeriod(k)} style={[styles.paperChip, active && styles.paperChipActive]}>
+                  <Text style={[styles.paperChipLabel, active && styles.paperChipLabelActive]}>{label}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.dateLabel}>DARI — {fmtDate(rangeFrom)}</Text>
+              <Pressable onPress={()=>setShowFromCal(true)} style={[styles.dateInputBox]}>
+                <Text style={styles.dateVal}>{rangeFrom}  📅</Text>
+              </Pressable>
+              <TextInput value={rangeFrom} onChangeText={onChangeFrom} placeholder="YYYY-MM-DD" style={{ backgroundColor: colors.surface, fontSize: 12 }} dense autoCapitalize="none" />
+              {!!fromErr ? <Text style={{ fontSize: 10, color: colors.error }}>{fromErr}</Text> : null}
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.dateLabel}>SAMPAI — {fmtDate(rangeTo)}</Text>
+              <Pressable onPress={()=>setShowToCal(true)} style={[styles.dateInputBox]}>
+                <Text style={styles.dateVal}>{rangeTo}  📅</Text>
+              </Pressable>
+              <TextInput value={rangeTo} onChangeText={onChangeTo} placeholder="YYYY-MM-DD" style={{ backgroundColor: colors.surface, fontSize: 12 }} dense autoCapitalize="none" />
+              {!!toErr ? <Text style={{ fontSize: 10, color: colors.error }}>{toErr}</Text> : null}
+            </View>
+          </View>
+          <DatePickerModal visible={showFromCal} value={rangeFrom} onSelect={(iso)=>{ setRangeFrom(iso); setFromErr(''); setPeriod('custom') }} onClose={()=>setShowFromCal(false)} />
+          <DatePickerModal visible={showToCal} value={rangeTo} onSelect={(iso)=>{ setRangeTo(iso); setToErr(''); setPeriod('custom') }} onClose={()=>setShowToCal(false)} />
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>Tap kotak tanggal untuk kalender. File CSV bisa dibuka langsung di Excel. Ringkasan + Detail (exclude void).</Text>
+          <Button mode="contained" icon="file-delimited" loading={exporting} disabled={exporting} onPress={async()=>{
+            try{ setExporting(true); setStatus('Membuat CSV...'); const r=await exportPeriodCsv({from: rangeFrom, to: rangeTo}); setStatus(r==='shared'?'CSV dibuat — pilih WA/Drive/Email':'Share tidak tersedia') } catch(e:any){ setStatus('Gagal CSV: '+(e?.message||String(e)))} finally{ setExporting(false); setTimeout(()=>setStatus(''),4000)}
+          }}>Export CSV Periode</Button>
+          <Text style={{ fontSize: 10, color: colors.textMuted, textAlign:'center' }}>laporan-kasir-kita-{rangeFrom}-{rangeTo}.csv</Text>
+        </View>
+      </Surface>
+
       <Text style={styles.section}>Data & Backup</Text>
       <Surface style={styles.card} elevation={0}>
         <List.Item
@@ -297,7 +362,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="Kasir Kita v1.1.0" description="Kasbon agregat + Supplier hutang + Laba Rugi + BT + 9 kertas — offline" />
+        <List.Item title="Kasir Kita v1.1.1" description="Kasbon agregat + Supplier hutang + Laba Rugi + BT + 9 kertas — offline" />
         <List.Item title="SOP Ganti HP" description="WA Device ID baru — 1x reset gratis. Chat WA di Lynk." />
         <List.Item title="Direct Bluetooth" description="Set alamat MAC di atas → Cetak Bluetooth langsung (fallback PDF jika belum paired)" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
@@ -326,4 +391,7 @@ const styles = StyleSheet.create({
   themeSwitchOn: { backgroundColor: colors.green },
   themeKnob: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FFF' },
   themeKnobOn: { alignSelf: 'flex-end' },
+  dateInputBox: { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#D6E0E8', borderRadius: 10, padding: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  dateLabel: { fontSize: 10, fontWeight: '800', color: '#5A758F', letterSpacing: 0.4 },
+  dateVal: { fontSize: 13, fontWeight: '700', color: '#2E3A47' },
 })

@@ -28,7 +28,7 @@
 ### 📊 Laporan & Riwayat — Reprint Struk
 - Tabs **Hari Ini / Minggu Ini / Bulan Ini**, cards Transaksi/Omzet/Tunai/QRIS, banner diskon, **Top-5 Terlaris**
 - Tiap transaksi: invoice, items, jam • metode, total + BON badge `sisa Rp` + **Cetak Ulang / PDF / Share WA / Bayar Bon / Tagih WA** + Void
-- Export laporan **Excel/CSV** + **PDF**
+- **Export CSV periode** (baru v1.1.1): chip Hari ini/7 Hari/Bulan ini/Custom + kalender tap 📅 (JS, anti-FC) + input Dari–Sampai → CSV (buka langsung di Excel) — Ringkasan + Detail (exclude void)
 
 ### 💳 Kasbon / Bon Pelanggan — Warung Banget
 - Di Kasir centang **Bon / Kasbon** (Atas Nama wajib + DP + Jatuh Tempo opsional) — bisa `paid < total`, sisa = `total - bon_paid`
@@ -42,7 +42,8 @@
 - Ringkasan shift: `Tunai (non-bon) / QRIS / VOID / Bon sisa global` + riwayat 10 shift
 - Tombol **Cetak Bluetooth** di Kasir sukses & Riwayat detail — pair dulu di Settings HP, fallback ke PDF/share kalau belum paired (`escPosReceipt` stub, next `react-native-ble-plx`)
 
-### ⚙️ Pengaturan & Backup
+### ⚙️ Pengaturan — Laporan & Ekspor + Backup
+- **Laporan & Ekspor CSV** (baru v1.1.1): chip Hari ini/7 Hari/Bulan ini/Custom + kalender JS 📅 tap → **Export CSV Periode** (Ringkasan: transaksi/omzet/cash/qris/piutang + Detail per item) → share WA/Drive, file `laporan-kasir-kita-YYYY-MM-DD-YYYY-MM-DD.csv` — buka langsung di Excel, tanpa `xlsx` biar anti-FC
 - **Nama toko** (muncul di header & struk) + **Logo struk PNG** (upload galeri → `pos_images/store_logo.png` → tampil di struk thermal/PDF)
 - **Ukuran kertas struk** (9 opsi, `pdf-lib` biar PDF pas tidak A4 melar):
   - `LABEL CONTINUOUS WITH CORE`: `57×30`, `80×30`
@@ -97,7 +98,7 @@ eas build -p android --profile production # → .aab (Play Store)
 | `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
 | `production` | `.aab` | Upload Google Play |
 
-APK history: `apk/kasir-kita-v1.0.9.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
+APK history: `apk/kasir-kita-v1.1.1.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
 
 ## 🔐 Aktivasi — Ed25519 1 license = 1 device (Opsi A via Email)
 Buyer checkout di Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** (instant, tanpa tunggu email). Token `base64(LICENSE|DEVICE|sig)` verify `tweetnacl` offline. `DEVICE_MISMATCH 403` jika beda HP.
@@ -126,7 +127,7 @@ src/
 │   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint/Bagikan per transaksi + BON badge + Bayar/Tagih WA
 │   ├── KasbonScreen.tsx        # bon list + Bayar + Tagih WA
 │   ├── ShiftScreen.tsx         # Buka/Tutup Shift + Kas Masuk/Keluar + audit
-│   └── SettingsScreen.tsx      # nama toko + logo PNG + 9 ukuran 57×30..80×80+A4 (chip group) + backup/restore + SOP ganti HP
+│   └── SettingsScreen.tsx      # CSV periode + kalender JS 📅 + logo PNG + 9 ukuran + backup/restore
 ├── components/
 │   ├── FloatingBottomBar.tsx   # 6 tab Kasir/Produk/Laporan/Kasbon/Shift/Lainnya
 │   ├── StickyCartBar.tsx       # pill navy bottom:84
