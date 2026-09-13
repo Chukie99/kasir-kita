@@ -19,9 +19,10 @@ export function getTheme(): ThemePref {
   return getSetting('theme', 'light') === 'dark' ? 'dark' : 'light'
 }
 
-// All thermal/label sizes user requested (mm). 57mm ≈ 58mm thermal.
-// Unique: 57x30, 80x30, 50x50, 80x40, 80x50, 80x80, 57x40. Plus legacy 58mm/80mm/A4 for compat.
+// Thermal/struk + label sizes
 export type PaperSize =
+  | '58mm'
+  | '80mm'
   | '57x30'
   | '80x30'
   | '50x50'
@@ -30,11 +31,10 @@ export type PaperSize =
   | '80x80'
   | '57x40'
   | 'A4'
-  // legacy aliases
-  | '58mm'
-  | '80mm'
 
 export const PAPER_OPTIONS: { value: PaperSize; label: string; group: string; wMm: number; hMm: number }[] = [
+  { value: '58mm', label: '58 mm — Struk Thermal', group: 'STRUK THERMAL', wMm: 58, hMm: 200 },
+  { value: '80mm', label: '80 mm — Struk Thermal', group: 'STRUK THERMAL', wMm: 80, hMm: 200 },
   { value: '57x30', label: '57 × 30 mm', group: 'LABEL CONTINUOUS WITH CORE', wMm: 57, hMm: 30 },
   { value: '80x30', label: '80 × 30 mm', group: 'LABEL CONTINUOUS WITH CORE', wMm: 80, hMm: 30 },
   { value: '50x50', label: '50 × 50 mm', group: 'PAPER THERMAL CORE', wMm: 50, hMm: 50 },
@@ -45,15 +45,15 @@ export const PAPER_OPTIONS: { value: PaperSize; label: string; group: string; wM
 ]
 
 export function normalizePaperSize(v: string): PaperSize {
-  if (v === '58mm') return '57x30' // legacy 58mm ~ 57mm
-  if (v === '80mm') return '80x80' // legacy 80mm -> biggest 80
+  if (v === '58mm') return '58mm'
+  if (v === '80mm') return '80mm'
   const found = PAPER_OPTIONS.find((o) => o.value === v)
   if (found) return found.value
-  return '57x30'
+  return '58mm'
 }
 
 export function getPaperSize(): PaperSize {
-  const raw = getSetting('paperSize', '57x30')
+  const raw = getSetting('paperSize', '58mm')
   return normalizePaperSize(raw)
 }
 
@@ -61,7 +61,5 @@ export function getPaperDims(size: PaperSize): { wMm: number; hMm: number } {
   const opt = PAPER_OPTIONS.find((o) => o.value === size)
   if (opt) return { wMm: opt.wMm, hMm: opt.hMm }
   if (size === 'A4') return { wMm: 210, hMm: 297 }
-  if (size === '58mm') return { wMm: 57, hMm: 30 }
-  if (size === '80mm') return { wMm: 80, hMm: 80 }
-  return { wMm: 57, hMm: 30 }
+  return { wMm: 58, hMm: 200 }
 }

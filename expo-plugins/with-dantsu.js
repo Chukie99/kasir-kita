@@ -3,11 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 function withDantsu(config) {
-  // 1. Tambah maven jitpack ke project build.gradle
   config = withProjectBuildGradle(config, (cfg) => {
     let src = cfg.modResults.contents;
     if (!src.includes('jitpack.io')) {
-      // Gradle 8+ pakai dependencyResolutionManagement di settings.gradle, tapi project build.gradle juga dibaca fallback — tambah di allprojects jika ada, else di akhir
       if (src.includes('allprojects')) {
         src = src.replace(/allprojects\s*\{[^}]*repositories\s*\{/, (m) => m + "\n        maven { url 'https://jitpack.io' }");
       } else {
@@ -17,8 +15,6 @@ function withDantsu(config) {
     }
     return cfg;
   });
-
-  // 2. Tambah implementation di app/build.gradle
   config = withAppBuildGradle(config, (cfg) => {
     let src = cfg.modResults.contents;
     if (!src.includes('ESCPOS-ThermalPrinter-Android')) {
@@ -27,12 +23,9 @@ function withDantsu(config) {
     }
     return cfg;
   });
-
-  // 3. Tulis native module Java (DantSu bridge)
   config = withDangerousMod(config, ['android', async (cfg) => {
     const base = path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm');
     await fs.promises.mkdir(base, { recursive: true });
-
     const modJava = `
 package com.chukie99.posumkm;
 import com.facebook.react.bridge.*;
@@ -40,6 +33,9 @@ import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
 import com.dantsu.escposprinter.EscPosPrinter;
 import com.dantsu.escposprinter.exceptions.EscPosConnectionException;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
 
 public class DantsuPrinterModule extends ReactContextBaseJavaModule {
   public DantsuPrinterModule(ReactApplicationContext ctx){ super(ctx); }
@@ -69,6 +65,11 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void printText(String address, String text, Promise p){
+    printTextWithSettings(address, text, "58mm", "", p);
+  }
+
+  @ReactMethod
+  public void printTextWithSettings(String address, String text, String paperSize, String logoPath, Promise p){
     try{
       BluetoothConnection[] list = new BluetoothPrintersConnections().getList();
       BluetoothConnection target = null;
@@ -81,11 +82,35 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
         target = BluetoothPrintersConnections.selectFirstPaired();
       }
       if(target==null){ p.reject("NO_PRINTER", "Tidak ada printer paired. Pair dulu di Bluetooth HP"); return; }
-      EscPosPrinter printer = new EscPosPrinter(target.connect(), 203, 48f, 32);
-      // text sudah ESC/POS plain — bungkus biar line break rapi
-      String formatted = "[L]\\n" + text.replace("\\n","\\n");
-      printer.printFormattedTextAndCut(formatted);
-      printer.disconnectPrinter();
+      float mmWidth = 48f;
+      int nbrChars = 32;
+      if(paperSize != null){
+        String ps = paperSize.toLowerCase();
+        if(ps.contains("80")){ mmWidth = 72f; nbrChars = 48; }
+        else if(ps.contains("58") || ps.contains("57")){ mmWidth = 48f; nbrChars = 32; }
+        else if(ps.contains("50")){ mmWidth = 48f; nbrChars = 32; }
+      }
+      EscPosPrinter printer = new EscPosPrinter(target.connect(), 203, mmWidth, nbrChars);
+      String logoPart = "";
+      if(logoPath != null && logoPath.length() > 5){
+        try{
+          String path = logoPath.replace("file://", "");
+          Bitmap bmp = BitmapFactory.decodeFile(path);
+          if(bmp != null){
+            int maxW = mmWidth >= 70 ? 450 : 350;
+            if(bmp.getWidth() > maxW){
+              float ratio = (float)maxW / bmp.getWidth();
+              int nh = Math.round(bmp.getHeight()*ratio);
+              bmp = Bitmap.createScaledBitmap(bmp, maxW, nh, true);
+            }
+            String hex = PrinterTextParserImg.bitmapToHexadecimalString(printer, bmp);
+            logoPart = "[C]<img>" + hex + "</img>\\n";
+          }
+        }catch(Exception _le){}
+      }
+      String formatted = logoPart + "[C]<font size='big'>KASIR KITA</font>\\n" + "[L]\\n" + text + "\\n";
+      try{ printer.printFormattedTextAndCut(formatted); } catch(Exception _e2){ try{ printer.printFormattedText("[L]" + text); } catch(Exception _e3){} }
+      try{ printer.disconnectPrinter(); } catch(Exception ignore){}
       p.resolve("printed");
     }catch(EscPosConnectionException e){
       p.reject("CONN", e.getMessage(), e);
@@ -113,8 +138,6 @@ public class DantsuPrinterPackage implements ReactPackage {
 `.trim();
     await fs.promises.writeFile(path.join(base, 'DantsuPrinterModule.java'), modJava, 'utf8');
     await fs.promises.writeFile(path.join(base, 'DantsuPrinterPackage.java'), pkgJava, 'utf8');
-
-    // 4. Auto-register package di MainApplication (Expo 51+ pakai ReactNativeHost)
     const appFiles = [
       path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm', 'MainApplication.java'),
       path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm', 'MainApplication.kt'),
@@ -124,10 +147,8 @@ public class DantsuPrinterPackage implements ReactPackage {
         let s = await fs.promises.readFile(f, 'utf8');
         if(!s.includes('DantsuPrinterPackage')){
           s = s.replace(/import\s+[^;]+;/, (m)=> m + "\nimport com.chukie99.posumkm.DantsuPrinterPackage;");
-          // cari getPackages() -> add
           s = s.replace(/new\s+PackageList\(this\)\.getPackages\(\)/, "new PackageList(this).getPackages()");
           s = s.replace(/\.getPackages\(\)/, ".getPackages() { packages.add(new DantsuPrinterPackage()); return packages; } // patched");
-          // fallback simple: inject after PackageList
           if(!s.includes('DantsuPrinterPackage')){
             s = s.replace(/return packages;/, "packages.add(new DantsuPrinterPackage());\n      return packages;");
           }
@@ -137,7 +158,6 @@ public class DantsuPrinterPackage implements ReactPackage {
     }
     return cfg;
   }]);
-
   return config;
 }
 

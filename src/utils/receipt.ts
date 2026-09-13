@@ -16,16 +16,21 @@ export function buildReceiptText(txId: number): string {
     [txId]
   )
   const storeName = getSetting('storeName', 'Kasir Kita')
-  const line = '-'.repeat(32)
+  let paperW = '58mm'
+  try { paperW = getPaperSize() } catch {}
+  const is80 = paperW.includes('80')
+  const is50 = paperW.includes('50')
+  const chars = is80 ? 48 : is50 ? 28 : 32
+  const line = '-'.repeat(chars)
   const voidHead = tx.voided ? '*** TRANSAKSI VOID ***' : null
   const customerLine = tx.customer_name ? `Atas Nama: ${tx.customer_name}` : null
   const bonLine = tx.is_bon ? `BON — Sisa: Rp ${((tx.total) - (tx.bon_paid ?? 0)).toLocaleString('id-ID')}${tx.bon_due_date ? ' (Jatuh tempo '+tx.bon_due_date+')' : ''}` : null
   const bonPaidLine = tx.is_bon ? `Dibayar: Rp ${(tx.bon_paid ?? 0).toLocaleString('id-ID')}` : null
   const rows = items.map((i) => {
     const mods = i.modifiers_label ? `\n  + ${i.modifiers_label}` : ''
-    return `${i.qty}x ${i.product_name}${mods}\n  ${('Rp ' + (i.unit_price * i.qty).toLocaleString('id-ID')).padStart(30)}`
+    return `${i.qty}x ${i.product_name}${mods}\n  ${('Rp ' + (i.unit_price * i.qty).toLocaleString('id-ID')).padStart(chars - 2)}`
   }).join('\n')
-  const pad = (label: string, val: string) => `${label}${val.padStart(32 - label.length)}`
+  const pad = (label: string, val: string) => `${label}${val.padStart(chars - label.length)}`
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
   return [
     `*${storeName.toUpperCase()}*`,
@@ -51,6 +56,43 @@ export function buildReceiptText(txId: number): string {
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
+async function getLogoDataUri(): Promise<string | null> {
+  const uri = getSetting('storeLogoUri','')
+  if(!uri) return null
+  try {
+    const { File } = await import('expo-file-system')
+    const f: any = new (File as any)(uri)
+    if (f.arrayBuffer) {
+      const buf: ArrayBuffer = await f.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let bin=''; for(let i=0;i<bytes.length;i++) bin+=String.fromCharCode(bytes[i])
+      const b64 = typeof btoa!=='undefined' ? btoa(bin) : (globalThis as any).btoa(bin)
+      const ext = uri.split('.').pop()?.toLowerCase() || 'png'
+      const mime = ext==='jpg'||ext==='jpeg' ? 'image/jpeg' : 'image/png'
+      return `data:${mime};base64,${b64}`
+    }
+  } catch {}
+  try {
+    const FS: any = await import('expo-file-system/legacy')
+    if (FS.readAsStringAsync) {
+      const b64 = await FS.readAsStringAsync(uri, { encoding: (FS as any).EncodingType ? (FS as any).EncodingType.Base64 : 'base64' })
+      const mime = uri.endsWith('.jpg')||uri.endsWith('.jpeg') ? 'image/jpeg':'image/png'
+      return `data:${mime};base64,${b64}`
+    }
+  } catch {}
+  return null
+}
+
+export async function buildReceiptHtmlAsync(txId: number, paperSize?: PaperSize): Promise<string> {
+  const dataUri = await getLogoDataUri()
+  const html = buildReceiptHtml(txId, paperSize)
+  if (!dataUri) return html
+  const uri = getSetting('storeLogoUri','')
+  if (uri && html.includes(uri)) return html.replaceAll(uri, dataUri)
+  if (html.includes('<img')) return html
+  return html.replace('<h2>', `<div style="text-align:center;margin-bottom:6px"><img src="${dataUri}" style="max-width:72px;max-height:48px;object-fit:contain"/></div><h2>`)
 }
 
 /** Build receipt HTML — supports all thermal sizes + A4 */
@@ -131,16 +173,19 @@ function paperPx(size: PaperSize): { w: number; h: number } {
 export async function printReceipt(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
   const { w, h } = paperPx(size)
-  // continuous: use tall height so thermal roll not cut; label sizes use exact h
   const isLabel = size !== 'A4'
-  await Print.printAsync({ html: buildReceiptHtml(txId, size), width: w, height: isLabel ? Math.max(h, 600) : h })
+  let html = buildReceiptHtml(txId, size)
+  try { html = await buildReceiptHtmlAsync(txId, size) } catch {}
+  await Print.printAsync({ html, width: w, height: isLabel ? Math.max(h, 600) : h })
 }
 
 export async function shareReceiptPdf(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
   if (size === 'A4') {
     const { w, h } = paperPx(size)
-    const { uri } = await Print.printToFileAsync({ html: buildReceiptHtml(txId, size), width: w, height: h })
+    let html = buildReceiptHtml(txId, size)
+    try { html = await buildReceiptHtmlAsync(txId, size) } catch {}
+    const { uri } = await Print.printToFileAsync({ html, width: w, height: h })
     const Sharing = await import('expo-sharing')
     if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Bagikan struk PDF' })
     return
@@ -164,6 +209,19 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
   const pdf = await PDFDocument.create()
   const font = await pdf.embedFont(StandardFonts.Courier)
   const fontBold = await pdf.embedFont(StandardFonts.CourierBold)
+  let logoImg: any = null; let logoDims: { w:number; h:number } | null = null
+  try {
+    const uri = getSetting('storeLogoUri','')
+    if (uri) {
+      let bytes: Uint8Array | null = null
+      try { const { File } = await import('expo-file-system'); const f:any=new (File as any)(uri); const buf:ArrayBuffer=await f.arrayBuffer(); bytes=new Uint8Array(buf) } catch {}
+      if (!bytes) { try { const FS:any=await import('expo-file-system/legacy'); const b64=await FS.readAsStringAsync(uri,{encoding:'base64' as any}); const bin=typeof atob!=='undefined'?atob(b64):(globalThis as any).atob(b64); bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i) } catch {}}
+      if (bytes) {
+        try { logoImg = await pdf.embedPng(bytes) } catch { try { logoImg = await pdf.embedJpg(bytes) } catch {} }
+        if (logoImg) { const maxW = mmToPt(dims.wMm*0.4); const iw=logoImg.width, ih=logoImg.height; const scale=Math.min(1, maxW/iw, mmToPt(12)/ih); logoDims={ w: iw*scale, h: ih*scale } }
+      }
+    }
+  } catch {}
   const pageWidth = mmToPt(dims.wMm)
   const pageHeight = mmToPt(dims.hMm)
   const margin = mmToPt(2)
@@ -194,11 +252,15 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
   lines.push({ text: '-'.repeat(24), size: 5, align: 'center' })
   lines.push({ text: 'Terima kasih!', size: 6, align: 'center' })
 
-  // Estimate needed height; if taller than label height, use continuous tall page
   const estH = lines.reduce((h, l) => h + (l.gap === 0 ? 6 : l.size + 2.5), 10) + 8
   const useH = Math.max(pageHeight, estH + margin * 2)
   const page = pdf.addPage([pageWidth, useH])
   let curY = useH - 7
+  if (logoImg && logoDims) {
+    const lx = (pageWidth - logoDims.w)/2
+    page.drawImage(logoImg, { x: lx, y: curY - logoDims.h, width: logoDims.w, height: logoDims.h })
+    curY -= (logoDims.h + 4)
+  }
   const drawLine = (l: Line) => {
     const f = l.bold ? fontBold : font
     const textWidth = f.widthOfTextAtSize(l.text, l.size)

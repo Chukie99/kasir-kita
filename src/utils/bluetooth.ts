@@ -1,6 +1,5 @@
-// Bluetooth ESC/POS — v1.1.3 DantSu Classic SPP (BluetoothPrintersConnections)
+// Bluetooth ESC/POS — v1.1.4 DantSu Classic SPP (BluetoothPrintersConnections)
 // Flow: Pair dulu di Settings HP (PIN 0000/1234) -> DantSu getList() paired -> print via EscPosPrinter
-// FIX 18:48: hapus expo-intent-launcher (biang FC AnyTypeProvider) — ganti Linking.sendIntent
 import { Platform, PermissionsAndroid, Linking } from 'react-native'
 import { getSetting, setSetting } from './settings'
 
@@ -59,6 +58,15 @@ export async function printViaBluetooth(text: string): Promise<'printed'|'shared
     const { NativeModules } = await import('react-native')
     const mod: any = (NativeModules as any).DantsuPrinter
     if (!mod || !mod.printText) return 'shared'
+    let paperSize = '58mm'
+    let logoPath: string | null = null
+    try { const { getPaperSize, getSetting } = await import('./settings'); paperSize = getPaperSize(); logoPath = getSetting('storeLogoUri','') || null } catch {}
+    // v1.1.4+: 4-arg printTextWithSettings(addr,text,paperSize,logoPath) — fallback ke 3/2 arg buat APK lama
+    if (logoPath) {
+      try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSize), String(logoPath)); return r === 'printed' ? 'printed' : 'shared' } } catch {}
+    }
+    try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSize), ''); return r === 'printed' ? 'printed' : 'shared' } } catch {}
+    try { const r = await mod.printText(String(addr), String(text), String(paperSize)); return r === 'printed' ? 'printed' : 'shared' } catch {}
     const r = await mod.printText(String(addr), String(text))
     return r === 'printed' ? 'printed' : 'shared'
   } catch { return 'shared' }
@@ -73,7 +81,6 @@ export const connectAndPrint = printViaBluetooth
 
 export async function openSystemBluetoothSettings() {
   try {
-    // tanpa expo-intent-launcher (biang FC) — pakai Linking native
     const anyLinking: any = Linking as any
     if (anyLinking.sendIntent) {
       await anyLinking.sendIntent('android.settings.BLUETOOTH_SETTINGS')
