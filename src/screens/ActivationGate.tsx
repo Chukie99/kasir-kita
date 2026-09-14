@@ -32,16 +32,16 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
     const r = await fetchLicenseByEmail(email)
     setEmailLoading(false)
     if (!r.ok) { setEmailMsg(r.error || 'Gagal ambil lisensi'); return }
-    const unused = (r.licenses || []).filter(l => l.status === 'UNUSED')
-    if (unused.length === 0) {
+    const avail = (r.licenses || []).filter(l => l.status === 'UNUSED' || l.status === 'ACTIVE' || l.status === 'READY')
+    if (avail.length === 0) {
       if ((r.licenses||[]).length>0) setEmailMsg('Semua lisensi email ini sudah terikat ke HP lain. Hubungi WA admin.')
       else setEmailMsg('Belum ada lisensi untuk email ini.')
       return
     }
-    setFound(unused)
-    setEmailMsg(`Ditemukan ${unused.length} lisensi UNUSED — tap Aktifkan`)
+    setFound(avail)
+    setEmailMsg(`Ditemukan ${avail.length} lisensi siap pakai — tap Aktifkan`)
     // auto-fill first code
-    setLicense(unused[0].code)
+    setLicense(avail[0].code)
   }
 
   return (
