@@ -167,32 +167,37 @@ export default function CashierScreen({ onSold }: { onSold: () => void }) {
           </View>
         )}
         <View style={styles.successBtnRow}>
-          <Button mode="outlined" icon="bluetooth" onPress={async () => {
-            if (!success?.txId) return
-            const txt = buildReceiptText(success.txId)
-            if (!getSavedPrinter()) {
-              const { Alert } = await import('react-native')
-              Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
-                { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
-                { text: 'Buka Pengaturan', onPress: () => {} },
-                { text: 'Batal', style: 'cancel' },
-              ])
-              return
-            }
-            try {
-              const r = await printViaBluetooth(txt)
-              if (r === 'shared') await printReceipt(success.txId)
-              else if (r === 'no_printer') {
+          {getSavedPrinter() ? (
+            <Button mode="contained" icon="printer" onPress={async () => {
+              if (!success?.txId) return
+              const txt = buildReceiptText(success.txId)
+              try {
+                const r = await printViaBluetooth(txt)
+                if (r === 'printed') return
+                await printReceipt(success.txId)
+              } catch { try { await printReceipt(success!.txId!) } catch {} }
+            }} style={{ flex: 1 }}>
+              Cetak Struk
+            </Button>
+          ) : (
+            <>
+              <Button mode="outlined" icon="bluetooth" onPress={async () => {
+                if (!success?.txId) return
+                const txt = buildReceiptText(success.txId)
                 const { Alert } = await import('react-native')
-                Alert.alert('Belum paired', 'Pilih printer di Pengaturan > Cari Printer Paired dulu')
-              }
-            } catch {}
-          }} style={{ flex: 1 }}>
-            Bluetooth
-          </Button>
-          <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch {} }} style={{ flex: 1 }}>
-            Cetak
-          </Button>
+                Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
+                  { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
+                  { text: 'Buka Pengaturan', onPress: () => {} },
+                  { text: 'Batal', style: 'cancel' },
+                ])
+              }} style={{ flex: 1 }}>
+                Bluetooth
+              </Button>
+              <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch {} }} style={{ flex: 1 }}>
+                Cetak
+              </Button>
+            </>
+          )}
           <Button mode="contained" icon="whatsapp" onPress={async () => { if (success?.txId) try { await shareReceipt(buildReceiptText(success.txId)) } catch {} }} style={{ flex: 1 }}>
             Kirim WA
           </Button>

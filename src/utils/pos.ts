@@ -115,7 +115,21 @@ export function lowStockProducts(threshold = 5): Product[] {
 }
 
 export function voidTransaction(transactionId: number, reason = ''): void {
-  getDb().prepareSync(
+  const db = getDb()
+  // balikin stok dulu sebelum void — surgical, jangan ubah logic lain
+  try {
+    const items = db.getAllSync<{ product_name: string; qty: number }>(
+      'SELECT product_name, qty FROM transaction_items WHERE transaction_id = ?', [transactionId]
+    )
+    for (const it of items) {
+      // cari produk by name yang masih aktif/tidak — stok null = tidak dilacak
+      const prod = db.getFirstSync<{ id: number; stock: number | null }>('SELECT id, stock FROM products WHERE name = ? LIMIT 1', [it.product_name])
+      if (prod && prod.stock !== null) {
+        db.runSync('UPDATE products SET stock = stock + ? WHERE id = ?', [it.qty, prod.id])
+      }
+    }
+  } catch {}
+  db.prepareSync(
     "UPDATE transactions SET voided = 1, voided_at = datetime('now','localtime'), void_reason = ? WHERE id = ?"
   ).executeSync(reason, transactionId)
 }

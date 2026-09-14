@@ -94,8 +94,9 @@ function palette(mode: 'light' | 'dark') {
   }
 }
 
-export let colors = palette('light')
+export let colors: ReturnType<typeof palette> = palette('light')
 
 export function applyTheme(mode: 'light' | 'dark') {
-  colors = palette(mode)
+  // mutate existing object so StyleSheet references update
+  Object.assign(colors, palette(mode))
 }
