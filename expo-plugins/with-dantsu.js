@@ -85,8 +85,32 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
       float mmWidth = 48f;
       int nbrChars = 32;
       if(paperSize != null){
-        String ps = paperSize.toLowerCase();
-        if(ps.contains("80")){ mmWidth = 72f; nbrChars = 48; }
+        String ps = paperSize.toLowerCase().trim();
+        if(ps.contains("a6") || ps.contains("105")){ mmWidth = 90f; nbrChars = 64; }
+        else if(ps.contains("80")){ mmWidth = 72f; nbrChars = 48; }
+        else if(ps.contains("custom")){
+          try{
+            String dims = ps.contains(":") ? ps.split(":")[1] : ps;
+            // dims like "105x148" or "80x50"
+            if(dims.contains("x")){
+              int w = Integer.parseInt(dims.split("x")[0].trim());
+              if(w >= 100){ mmWidth = 90f; nbrChars = 64; }
+              else if(w >= 70){ mmWidth = 72f; nbrChars = 48; }
+              else { mmWidth = 48f; nbrChars = 32; }
+            }
+          }catch(Exception ignore){ mmWidth = 48f; nbrChars = 32; }
+        }
+        else if(ps.contains("x")){
+          try{
+            int w = Integer.parseInt(ps.split("x")[0].trim());
+            if(w >= 100){ mmWidth = 90f; nbrChars = 64; }
+            else if(w >= 70){ mmWidth = 72f; nbrChars = 48; }
+            else { mmWidth = 48f; nbrChars = 32; }
+          }catch(Exception ignore){}
+          if(ps.contains("80")){ mmWidth = 72f; nbrChars = 48; }
+          else if(ps.contains("58") || ps.contains("57")){ mmWidth = 48f; nbrChars = 32; }
+          else if(ps.contains("50")){ mmWidth = 48f; nbrChars = 32; }
+        }
         else if(ps.contains("58") || ps.contains("57")){ mmWidth = 48f; nbrChars = 32; }
         else if(ps.contains("50")){ mmWidth = 48f; nbrChars = 32; }
       }

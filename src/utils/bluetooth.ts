@@ -58,15 +58,25 @@ export async function printViaBluetooth(text: string): Promise<'printed'|'shared
     const { NativeModules } = await import('react-native')
     const mod: any = (NativeModules as any).DantsuPrinter
     if (!mod || !mod.printText) return 'shared'
-    let paperSize = '58mm'
+    let paperSizeArg = '58mm'
     let logoPath: string | null = null
-    try { const { getPaperSize, getSetting } = await import('./settings'); paperSize = getPaperSize(); logoPath = getSetting('storeLogoUri','') || null } catch {}
+    try {
+      const { getPaperSize, getCustomDims, getSetting } = await import('./settings')
+      const raw = getPaperSize()
+      if (raw === 'custom') {
+        const d = getCustomDims()
+        paperSizeArg = `custom:${d.wMm}x${d.hMm}`
+      } else {
+        paperSizeArg = raw
+      }
+      logoPath = getSetting('storeLogoUri','') || null
+    } catch {}
     // v1.1.4+: 4-arg printTextWithSettings(addr,text,paperSize,logoPath) — fallback ke 3/2 arg buat APK lama
     if (logoPath) {
-      try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSize), String(logoPath)); return r === 'printed' ? 'printed' : 'shared' } } catch {}
+      try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath)); return r === 'printed' ? 'printed' : 'shared' } } catch {}
     }
-    try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSize), ''); return r === 'printed' ? 'printed' : 'shared' } } catch {}
-    try { const r = await mod.printText(String(addr), String(text), String(paperSize)); return r === 'printed' ? 'printed' : 'shared' } catch {}
+    try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), ''); return r === 'printed' ? 'printed' : 'shared' } } catch {}
+    try { const r = await mod.printText(String(addr), String(text), String(paperSizeArg)); return r === 'printed' ? 'printed' : 'shared' } catch {}
     const r = await mod.printText(String(addr), String(text))
     return r === 'printed' ? 'printed' : 'shared'
   } catch { return 'shared' }

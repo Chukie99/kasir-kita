@@ -17,11 +17,17 @@ export function buildReceiptText(txId: number): string {
   )
   const storeName = getSetting('storeName', 'Kasir Kita')
   const kasirName = getSetting('kasirName', '').trim()
-  let paperW = '58mm'
-  try { paperW = getPaperSize() } catch {}
-  const is80 = paperW.includes('80')
-  const is50 = paperW.includes('50')
-  const chars = is80 ? 48 : is50 ? 28 : 32
+  let paperSize: PaperSize = '58mm'
+  try { paperSize = getPaperSize() as PaperSize } catch {}
+  // chars ikut lebar kertas — A6 105mm = 48 char, 50mm = 24 char
+  let chars = 32
+  try {
+    const dims = getPaperDims(paperSize as PaperSize)
+    if (dims.wMm >= 100) chars = 48
+    else if (dims.wMm >= 70) chars = 48
+    else if (dims.wMm <= 50) chars = 24
+    else chars = 32
+  } catch { const s = String(paperSize).toLowerCase(); if (s.includes('a6') || s.includes('105')) chars = 48; else if (s.includes('80')) chars = 48; else if (s.includes('50')) chars = 24 }
   const line = '-'.repeat(chars)
   const voidHead = tx.voided ? '*** TRANSAKSI VOID ***' : null
   const customerLine = tx.customer_name ? `Atas Nama: ${tx.customer_name}` : null

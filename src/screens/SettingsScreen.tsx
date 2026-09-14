@@ -6,15 +6,14 @@ import { exportDailyReport } from '../utils/export'
 import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRange } from '../utils/export_period'
 import DatePickerModal from '../components/DatePickerModal'
 import { createBackup, restoreFromSql } from '../utils/backup'
-import { getSetting, setSetting, getPaperSize, PAPER_OPTIONS, type PaperSize } from '../utils/settings'
+import { getSetting, setSetting, getPaperSize, getPaperLabel, type PaperSize } from '../utils/settings'
 import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, openSystemBluetoothSettings, type BtDevice } from '../utils/bluetooth'
+import PaperPickerModal from '../components/PaperPickerModal'
 
 interface Props {
   dark: boolean
   onToggleTheme: () => void
 }
-
-const GROUPS = ['LABEL CONTINUOUS WITH CORE', 'PAPER THERMAL CORE', 'PAPER THERMAL CORELESS', 'LAINNYA'] as const
 
 export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [status, setStatus] = useState<string>('')
@@ -25,6 +24,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [editingKasir, setEditingKasir] = useState(false)
   const [editingLink, setEditingLink] = useState(false)
   const [paperSize, setPaperSize] = useState<PaperSize>(() => getPaperSize())
+  const [showPaperPicker, setShowPaperPicker] = useState(false)
   const [logoUri, setLogoUri] = useState(() => getSetting('storeLogoUri', ''))
   const [btAddr, setBtAddr] = useState(() => getSavedPrinter() || '')
   const [btName, setBtName] = useState(() => getSavedPrinterName() || '')
@@ -112,13 +112,6 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     setTimeout(() => setStatus(''), 2000)
   }
 
-  const onPaperSizeChange = (v: PaperSize) => {
-    setPaperSize(v)
-    setSetting('paperSize', v)
-    setStatus(`Kertas: ${v} — PDF & cetak akan pakai ${v}`)
-    setTimeout(() => setStatus(''), 3500)
-  }
-
   const doExport = async () => {
     try {
       setStatus('Membuat file laporan...')
@@ -156,25 +149,6 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     } catch (e) {
       setStatus('Gagal restore: ' + (e instanceof Error ? e.message : String(e)))
     }
-  }
-
-  // group options: 57x30 appears in both LABEL and CORELESS — show duplicate entry for CORELESS as alias
-  const allOptions = [
-    ...PAPER_OPTIONS,
-    { value: 'A4' as PaperSize, label: 'A4 — 210 × 297 mm', group: 'LAINNYA', wMm: 210, hMm: 297 },
-  ]
-  // add duplicate 57x30 for CORELESS group so user sees it in both places
-  const displayOptions = [
-    ...allOptions,
-    { value: '57x30' as PaperSize, label: '57 × 30 mm', group: 'PAPER THERMAL CORELESS', wMm: 57, hMm: 30 },
-  ]
-
-  const grouped: Record<string, typeof displayOptions> = {}
-  for (const o of displayOptions) {
-    if (!grouped[o.group]) grouped[o.group] = []
-    // dedup 57x30 in same group
-    if (grouped[o.group].some(x => x.value === o.value && x.group === o.group)) continue
-    grouped[o.group].push(o)
   }
 
   return (
@@ -243,25 +217,15 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
       <Text style={styles.section}>Ukuran Kertas Struk</Text>
       <Surface style={styles.card} elevation={0}>
         <View style={{ padding: 14, gap: 10 }}>
-          <Text style={{ fontSize: 11, color: colors.textMuted }}>Pilih sesuai roll di printer. Label 30mm pendek, kertas 50x50 kotak. PDF akan pas ukurannya — tidak A4 melar.</Text>
-          {Object.entries(grouped).map(([group, opts]) => (
-            <View key={group} style={{ gap: 6, marginTop: 6 }}>
-              <Text style={{ fontSize: 10, fontWeight: '800', color: colors.greenDark, letterSpacing: 0.5 }}>{group}</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {opts.map((o) => {
-                  const active = paperSize === o.value
-                  return (
-                    <Pressable key={`${group}-${o.value}`} onPress={() => onPaperSizeChange(o.value as PaperSize)} style={[styles.paperChip, active && styles.paperChipActive]}>
-                      <Text style={[styles.paperChipLabel, active && styles.paperChipLabelActive]}>{o.label}</Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
-          ))}
-          <Text style={{ fontSize: 11, color: colors.greenDark, fontWeight: '700', marginTop: 4 }}>Aktif: {paperSize}</Text>
+          <Text style={{ fontSize: 11, color: colors.textMuted }}>Tap kotak untuk pilih. Xprinter A6 = pilih A6 — 105×148. Mau ukuran bebas → Custom W×H. PDF & Bluetooth ikut.</Text>
+          <Pressable onPress={() => setShowPaperPicker(true)} style={[styles.dateInputBox, { borderColor: colors.green }]}>
+            <Text style={{ fontSize: 13, fontWeight: '800', color: colors.text }}>{getPaperLabel(paperSize as PaperSize)}</Text>
+            <Text style={{ fontSize: 14, color: colors.textMuted }}>▾</Text>
+          </Pressable>
+          <Text style={{ fontSize: 10, color: colors.textMuted }}>Aktif: {getPaperLabel(paperSize as PaperSize)} — pilih lagi untuk ganti • Custom = bebas 30-210×30-297 mm</Text>
         </View>
       </Surface>
+      <PaperPickerModal visible={showPaperPicker} value={paperSize as PaperSize} onSelect={(v)=>{ setPaperSize(v); setSetting('paperSize', v); setStatus(`Kertas: ${getPaperLabel(v as PaperSize)} — PDF & cetak akan pakai ini`); setTimeout(()=>setStatus(''),3500) }} onClose={()=>setShowPaperPicker(false)} />
 
       <Text style={styles.section}>Tema</Text>
       <Surface style={styles.card} elevation={0}>
