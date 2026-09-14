@@ -3,7 +3,7 @@ import * as Print from 'expo-print'
 import { getSetting, getPaperSize, getPaperDims } from './settings'
 import type { PaperSize } from './settings'
 
-/** Build a plain-text receipt for a transaction. */
+/** Plain text untuk Bluetooth ESC/POS — tambah Atas Nama & Kasir kalau ada */
 export function buildReceiptText(txId: number): string {
   const db = getDb()
   const tx = db.getFirstSync<{
@@ -16,6 +16,7 @@ export function buildReceiptText(txId: number): string {
     [txId]
   )
   const storeName = getSetting('storeName', 'Kasir Kita')
+  const kasirName = getSetting('kasirName', '').trim()
   let paperW = '58mm'
   try { paperW = getPaperSize() } catch {}
   const is80 = paperW.includes('80')
@@ -35,6 +36,7 @@ export function buildReceiptText(txId: number): string {
   return [
     `*${storeName.toUpperCase()}*`,
     ...(voidHead ? [voidHead, line] : []),
+    ...(kasirName ? [`Kasir: ${kasirName}`] : []),
     line,
     `No: ${tx.invoice}`,
     ...(customerLine ? [customerLine] : []),
@@ -99,7 +101,7 @@ export async function buildReceiptHtmlAsync(txId: number, paperSize?: PaperSize)
   return html.replace('<h2>', `<div style="text-align:center;margin-bottom:6px"><img src="${dataUri}" style="max-width:${maxW};max-height:${maxH};object-fit:contain"/></div><h2>`)
 }
 
-/** Build receipt HTML — 100% full width, 0 margin, larger font for thermal receipt */
+/** FIX CLEAN — table 100% mekar + margin 1.5mm + logo + thank you 2 baris + tanpa badge + auto-cut */
 export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
   const db = getDb()
   const tx = db.getFirstSync<{
@@ -112,57 +114,62 @@ export function buildReceiptHtml(txId: number, paperSize?: PaperSize): string {
     [txId]
   )
   const storeName = getSetting('storeName', 'Kasir Kita')
+  const kasirName = getSetting('kasirName', '').trim()
   const logoUri = getSetting('storeLogoUri', '')
   const size: PaperSize = paperSize ?? getPaperSize()
   const dims = getPaperDims(size)
   const isA4 = size === 'A4'
   const isWide = dims.wMm >= 70
-  const width = isA4 ? '180mm' : '100%'
-  const fontSize = isA4 ? '12px' : isWide ? '12px' : '11px'
-  const pageSize = isA4 ? 'A4 portrait' : `${dims.wMm}mm ${dims.hMm}mm`
+  // FIX: thermal auto height, bukan 200mm fix
+  const pageSize = isA4 ? 'A4 portrait' : `${dims.wMm}mm auto`
   const pageMargin = isA4 ? '10mm' : '0mm'
   const logoMaxW = isA4 ? '120px' : isWide ? '110px' : '84px'
   const logoMaxH = isA4 ? '80px' : isWide ? '70px' : '56px'
   const logoHtml = logoUri
-    ? `<div style="text-align:center;margin-bottom:6px"><img src="${logoUri}" style="max-width:${logoMaxW};max-height:${logoMaxH};object-fit:contain"/></div>`
+    ? `<div style="text-align:center;margin-bottom:4px"><img src="${logoUri}" style="max-width:${logoMaxW};max-height:${logoMaxH};object-fit:contain"/></div>`
     : ''
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
+  // FIX: table 100% bukan flex — biar gak jadi |---|
   const rows = items.map((i) => {
-    const mods = i.modifiers_label ? `<div class="mod">+ ${esc(i.modifiers_label)}</div>` : ''
-    return `<div class="item"><div>${i.qty}x ${esc(i.product_name)}${mods}</div><b>${rp(i.unit_price * i.qty)}</b></div>`
+    const mods = i.modifiers_label ? `<div style="color:#333;padding-left:4px;font-size:8px">+ ${esc(i.modifiers_label)}</div>` : ''
+    return `<tr><td style="padding:1.5px 0;font-size:${isWide ? '11px' : '10.5px'}">${i.qty}x ${esc(i.product_name)}${mods}</td><td style="padding:1.5px 0;font-size:${isWide ? '11px' : '10.5px'};text-align:right;font-weight:700;white-space:nowrap">${rp(i.unit_price * i.qty)}</td></tr>`
   }).join('')
+  // meta: No + Tgl + Atas Nama & Kasir conditional
+  const metaLines = [
+    `No: ${esc(tx.invoice)}`,
+    tx.customer_name ? `Atas Nama: ${esc(tx.customer_name)}` : null,
+    `Tgl: ${tx.created_at.slice(0, 16)}`,
+    kasirName ? `Kasir: ${esc(kasirName)}` : null,
+    tx.voided && tx.void_reason ? `Void: ${esc(tx.void_reason)}` : null,
+  ].filter(Boolean).join('<br/>')
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
 <style>
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; width: 100%; }
-  @page { size: ${pageSize}; margin: ${pageMargin}; }
-  body { font-family: monospace; width: ${width}; margin: 0 auto; font-size: ${fontSize}; color: #000; padding: ${isA4 ? '0' : '2mm 1mm'}; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  h2 { text-align: center; margin: 2px 0 1px; letter-spacing: 0.5px; font-size: ${isA4 ? '18px' : isWide ? '16px' : '14px'}; font-weight: 900; }
-  .store-sub { text-align: center; font-size: 9px; color: #444; margin-bottom: 4px; }
-  .void { text-align:center; font-weight:900; color:#B91C1C; border:2px solid #B91C1C; padding:4px 0; margin:4px 0; letter-spacing:1px; }
-  .line { border-top: 1px dashed #000; margin: 4px 0; }
-  .meta { font-size: ${isA4 ? '11px' : '9px'}; word-break: break-word; line-height: 1.3; }
-  .item { display: flex; justify-content: space-between; gap: 4px; margin: 2px 0; font-size: ${fontSize}; }
-  .mod { color: #333; padding-left: 6px; font-size: 9px; }
-  .tot { display: flex; justify-content: space-between; margin: 2px 0; font-weight: 900; font-size: ${isA4 ? '14px' : isWide ? '13px' : '12px'}; }
-  .center { text-align: center; font-size: 9px; margin-top: 6px; }
-  .badge-size { text-align: center; font-size: 7px; color: #666; margin-top: 6px; }
+  *{box-sizing:border-box} html,body{margin:0;padding:0;width:100%}
+  @page{size:${pageSize};margin:${pageMargin}}
+  body{font-family:monospace;width:100%;margin:0 auto;font-size:${isWide ? '11px' : '10.5px'};color:#000;padding:${isA4 ? '0' : '1.5mm 1.5mm 2mm'};-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  h2{text-align:center;margin:1px 0 1px;font-size:${isA4 ? '18px' : isWide ? '16px' : '14px'};font-weight:900;letter-spacing:0.5px}
+  .meta{font-size:${isA4 ? '10px' : '8.5px'};text-align:center;color:#444;line-height:1.4}
+  .line{border-top:1px dashed #000;margin:4px 0}
+  table{width:100%;border-collapse:collapse}
+  .tot td{font-weight:900;font-size:${isA4 ? '14px' : isWide ? '13px' : '12px'};padding:1.5px 0}
+  .center{text-align:center;font-size:9px;line-height:1.45;margin-top:6px}
+  .void{text-align:center;font-weight:900;color:#B91C1C;border:1.5px solid #B91C1C;padding:3px 0;margin:4px 0}
 </style></head><body>
 ${tx.voided ? '<div class="void">TRANSAKSI VOID — TIDAK DITAGIH</div>' : ''}${(tx as any).is_bon ? `<div style="text-align:center;font-weight:900;color:#B45309;border:1px dashed #F59E0B;padding:3px 0;margin:4px 0;">BON — Sisa Rp ${((tx as any).total - ((tx as any).bon_paid ?? 0)).toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' • Tgl '+(tx as any).bon_due_date : ''}</div>` : ''}
 ${logoHtml}
 <h2>${esc(storeName.toUpperCase())}</h2>
-${isA4 ? '<div class="store-sub">Struk Penjualan — dicetak dari Kasir Kita</div>' : ''}
-<div class="meta">No: ${tx.invoice}<br/>${tx.customer_name ? `Atas Nama: ${esc(tx.customer_name)}<br/>` : ''}Tgl: ${tx.created_at.slice(0, 16)} &bull; Kertas: ${size}${tx.voided && tx.void_reason ? `<br/>Void: ${esc(tx.void_reason)}` : ''}</div>
+<div class="meta">${metaLines}</div>
 <div class="line"></div>
-${rows}
+<table>${rows}</table>
 <div class="line"></div>
-${tx.discount > 0 ? `<div class="tot" style="font-weight:normal;font-size:10px;"><span>Diskon</span><span>-${rp(tx.discount)}</span></div>` : ''}
-<div class="tot"><span>TOTAL</span><span>${rp(tx.total)}</span></div>
-<div class="tot" style="font-weight:normal;font-size:10px;"><span>${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'}</span><span>${rp(tx.paid)}</span></div>
-${tx.payment_method === 'cash' ? `<div class="tot" style="font-weight:normal;font-size:10px;"><span>Kembalian</span><span>${rp(tx.change)}</span></div>` : ''}
+<table class="tot">
+${tx.discount > 0 ? `<tr><td style="font-weight:normal;font-size:10px">Diskon</td><td style="font-weight:normal;font-size:10px;text-align:right">-${rp(tx.discount)}</td></tr>` : ''}
+<tr><td>TOTAL</td><td style="text-align:right">${rp(tx.total)}</td></tr>
+<tr><td style="font-weight:normal;font-size:10px">${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'}</td><td style="font-weight:normal;font-size:10px;text-align:right">${rp(tx.paid)}</td></tr>
+${tx.payment_method === 'cash' ? `<tr><td style="font-weight:normal;font-size:10px">Kembalian</td><td style="font-weight:normal;font-size:10px;text-align:right">${rp(tx.change)}</td></tr>` : ''}
+</table>
 <div class="line"></div>
-<p class="center">Terima kasih!<br/>Semoga puas dengan layanan kami</p>
-<div class="badge-size">Kertas: ${size} (${dims.wMm}×${dims.hMm} mm)</div>
+<div class="center">Terima kasih!<br/>Semoga puas dengan layanan kami</div>
 </body></html>`
 }
 
@@ -174,16 +181,17 @@ function mmToPt(mm: number): number { return mm * 2.83464567 }
 function paperPx(size: PaperSize): { w: number; h: number } {
   const d = getPaperDims(size)
   if (size === 'A4') return { w: 595, h: 842 }
-  return { w: Math.round(mmToPt(d.wMm)), h: Math.round(mmToPt(d.hMm)) }
+  // FIX: tinggi auto bukan 200mm fix — biar gak kepanjangan, cutter pas di thank you
+  return { w: Math.round(mmToPt(d.wMm)), h: Math.round(mmToPt(100)) }
 }
 
 export async function printReceipt(txId: number, paperSize?: PaperSize): Promise<void> {
   const size = paperSize ?? getPaperSize()
-  const { w, h } = paperPx(size)
-  const isLabel = size !== 'A4'
+  const { w } = paperPx(size)
   let html = buildReceiptHtml(txId, size)
   try { html = await buildReceiptHtmlAsync(txId, size) } catch {}
-  await Print.printAsync({ html, width: w, height: isLabel ? Math.max(h, 600) : h })
+  // FIX: height auto — biar kertas continuous gak kepanjangan & thank you gak kepotong
+  await Print.printAsync({ html, width: w, orientation: size === 'A4' ? ('portrait' as any) : undefined })
 }
 
 export async function shareReceiptPdf(txId: number, paperSize?: PaperSize): Promise<void> {
@@ -211,6 +219,7 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
     [txId]
   )
   const storeName = getSetting('storeName', 'Kasir Kita')
+  const kasirName = getSetting('kasirName', '').trim()
   const dims = getPaperDims(size)
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
   const pdf = await PDFDocument.create()
@@ -228,25 +237,25 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
         if (logoImg) {
           const maxW = mmToPt(dims.wMm * 0.5)
           const iw=logoImg.width, ih=logoImg.height
-          const scale=Math.min(1, maxW/iw, mmToPt(16)/ih)
+          const scale=Math.min(1, maxW/iw, mmToPt(14)/ih)
           logoDims={ w: iw*scale, h: ih*scale }
         }
       }
     }
   } catch {}
   const pageWidth = mmToPt(dims.wMm)
-  const pageHeight = mmToPt(dims.hMm)
-  const margin = mmToPt(1)
+  const margin = mmToPt(1.5)
   const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
   type Line = { text: string; bold?: boolean; size: number; align?: 'left' | 'center' | 'right'; gap?: number }
   const lines: Line[] = []
   if (tx.voided) { lines.push({ text: '*** TRANSAKSI VOID ***', bold: true, size: 8, align: 'center' }); lines.push({ text: '-'.repeat(28), size: 6, align: 'center' }) }
   if ((tx as any).is_bon) { const sisa = (tx as any).total - ((tx as any).bon_paid ?? 0); lines.push({ text: `BON — Sisa Rp ${sisa.toLocaleString('id-ID')}${(tx as any).bon_due_date ? ' Tgl '+(tx as any).bon_due_date : ''}`, bold: true, size: 7, align: 'center' }) }
   lines.push({ text: storeName.toUpperCase().slice(0, 32), bold: true, size: dims.wMm <= 50 ? 9 : 11, align: 'center' })
-  lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
-  lines.push({ text: `No: ${tx.invoice}`, size: 7, align: 'left' })
-  if (tx.customer_name) lines.push({ text: `Atas Nama: ${tx.customer_name}`.slice(0, 36), size: 7, align: 'left' })
-  lines.push({ text: `Tgl: ${tx.created_at.slice(0, 16)}  ${size}`, size: 6, align: 'left' })
+  lines.push({ text: `-`.repeat(28), size: 6, align: 'center' })
+  lines.push({ text: `No: ${tx.invoice}`, size: 7, align: 'center' })
+  if (tx.customer_name) lines.push({ text: `Atas Nama: ${tx.customer_name}`.slice(0, 36), size: 7, align: 'center' })
+  if (kasirName) lines.push({ text: `Kasir: ${kasirName}`.slice(0, 36), size: 6, align: 'center' })
+  lines.push({ text: `Tgl: ${tx.created_at.slice(0, 16)}`, size: 6, align: 'center' })
   lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
   const maxChars = dims.wMm <= 50 ? 22 : dims.wMm <= 57 ? 28 : 36
   for (const it of items) {
@@ -262,10 +271,13 @@ async function shareReceiptPdfLib(txId: number, size: PaperSize): Promise<void> 
   lines.push({ text: `${tx.payment_method === 'cash' ? 'Tunai' : 'QRIS'} ${rp(tx.paid)}`, size: 7, align: 'right' })
   if (tx.payment_method === 'cash') lines.push({ text: `Kembalian ${rp(tx.change)}`, size: 7, align: 'right' })
   lines.push({ text: '-'.repeat(28), size: 6, align: 'center' })
+  // FIX: 2 baris biar gak kepotong samping di 58mm
   lines.push({ text: 'Terima kasih!', size: 7, align: 'center' })
+  lines.push({ text: 'Semoga puas dengan layanan kami', size: 6, align: 'center' })
 
-  const estH = lines.reduce((h, l) => h + (l.gap === 0 ? 7 : l.size + 3), 10) + 8
-  const useH = Math.max(pageHeight, estH + margin * 2)
+  // FIX: height AUTO pas isi — bukan 200mm fix, cutter pas di thank you
+  const estH = lines.reduce((h, l) => h + (l.gap === 0 ? 7 : l.size + 3), 12) + (logoDims ? logoDims.h + 6 : 0) + 10
+  const useH = estH + 8
   const page = pdf.addPage([pageWidth, useH])
   let curY = useH - 6
   if (logoImg && logoDims) {

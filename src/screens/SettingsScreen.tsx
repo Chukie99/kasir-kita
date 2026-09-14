@@ -19,8 +19,10 @@ const GROUPS = ['LABEL CONTINUOUS WITH CORE', 'PAPER THERMAL CORE', 'PAPER THERM
 export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [status, setStatus] = useState<string>('')
   const [storeName, setStoreName] = useState(() => getSetting('storeName', ''))
+  const [kasirName, setKasirName] = useState(() => getSetting('kasirName', ''))
   const [buyLink, setBuyLink] = useState(() => getSetting('buyLink', 'https://lynk.id/chuckie99'))
   const [editingStore, setEditingStore] = useState(false)
+  const [editingKasir, setEditingKasir] = useState(false)
   const [editingLink, setEditingLink] = useState(false)
   const [paperSize, setPaperSize] = useState<PaperSize>(() => getPaperSize())
   const [logoUri, setLogoUri] = useState(() => getSetting('storeLogoUri', ''))
@@ -54,6 +56,13 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
     setSetting('storeName', storeName.trim())
     setEditingStore(false)
     setStatus('Nama toko disimpan — akan muncul di struk')
+    setTimeout(() => setStatus(''), 3000)
+  }
+
+  const saveKasir = () => {
+    setSetting('kasirName', kasirName.trim())
+    setEditingKasir(false)
+    setStatus(kasirName.trim() ? `Nama kasir disimpan: ${kasirName.trim()} — akan muncul di struk` : 'Nama kasir dikosongkan')
     setTimeout(() => setStatus(''), 3000)
   }
 
@@ -187,6 +196,27 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Button mode="contained" onPress={saveStore} compact>Simpan</Button>
               <Button mode="text" onPress={() => setEditingStore(false)} textColor={colors.textMuted} compact>Batal</Button>
+            </View>
+          </View>
+        )}
+      </Surface>
+
+      <Surface style={[styles.card, { marginTop: 8 }]} elevation={0}>
+        {!editingKasir ? (
+          <List.Item
+            title={getSetting('kasirName', '') || 'Atur nama kasir'}
+            description="Nama kasir tampil di struk (di bawah jam). Kosongkan kalau gak perlu"
+            left={(p) => <List.Icon {...p} icon="account-tie" color={colors.green} />}
+            right={(p) => <List.Icon {...p} icon="pencil" color={colors.textMuted} />}
+            onPress={() => setEditingKasir(true)}
+          />
+        ) : (
+          <View style={{ padding: 14, gap: 10 }}>
+            <TextInput value={kasirName} onChangeText={setKasirName} placeholder="contoh: Sopian / Kasir 1"
+              style={{ backgroundColor: colors.surface }} dense autoFocus />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button mode="contained" onPress={saveKasir} compact>Simpan</Button>
+              <Button mode="text" onPress={() => setEditingKasir(false)} textColor={colors.textMuted} compact>Batal</Button>
             </View>
           </View>
         )}
@@ -366,7 +396,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             </View>
           </View>
         )}
-        <List.Item title="Kasir Kita v1.1.1" description="Kasbon agregat + Supplier hutang + Laba Rugi + BT + 9 kertas — offline" />
+        <List.Item title="Kasir Kita v1.1.6" description="Kasbon agregat + Supplier hutang + Laba Rugi + BT + 9 kertas — offline" />
         <List.Item title="SOP Ganti HP" description="WA Device ID baru — 1x reset gratis. Chat WA di Lynk." />
         <List.Item title="Direct Bluetooth" description="Set alamat MAC di atas → Cetak Bluetooth langsung (fallback PDF jika belum paired)" />
         <List.Item title="100% Offline" description="Data tersimpan di HP Anda, tanpa server" />
