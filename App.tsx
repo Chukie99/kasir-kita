@@ -129,7 +129,7 @@ export default function App() {
             </Appbar.Header>
 
             <View style={{ flex: 1, backgroundColor: colors.bg }}>
-              {tab === 'kasir' && <CashierScreen key={`kasir-${refreshKey}-${themeTick}`} onSold={() => setRefreshKey((k) => k + 1)} />}
+              {tab === 'kasir' && <CashierScreen key={`kasir-${themeTick}`} tick={refreshKey} onSold={() => setRefreshKey((k) => k + 1)} />}
               {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} onChanged={() => setRefreshKey(k => k+1)} />}
               {tab === 'riwayat' && <HistoryScreen key={`riwayat-${refreshKey}-${themeTick}`} />}
               {tab === 'kasbon' && <KasbonScreen key={`kasbon-${refreshKey}-${themeTick}`} onChanged={() => setRefreshKey(k => k+1)} />}
