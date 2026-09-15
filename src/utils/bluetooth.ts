@@ -6,6 +6,13 @@ import { getSetting, setSetting } from './settings'
 export type BtDevice = { id: string; name: string | null; bonded?: boolean }
 export type BtScanResult = { bonded: BtDevice[]; discovered: BtDevice[]; error?: string }
 
+// ——— PRINT LIFECYCLE ———
+let _isPrinting = false
+let _printSeq = 0
+export function isPrintingNow() { return _isPrinting }
+function nextReqId() { _printSeq++; return `R${_printSeq}-${Date.now().toString(36).slice(-5)}` }
+function logBt(...a:any[]){ try{ console.log('[BT]', ...a) }catch{} }
+
 export function escPosReceipt(text: string): Uint8Array {
   const init = [0x1B, 0x40]
   const bytes = Array.from(new TextEncoder().encode(text))
@@ -107,11 +114,12 @@ export async function connectPrinter(address: string): Promise<void> {
 export async function printViaBluetooth(text: string): Promise<'printed'|'shared'|'no_printer'> {
   const addr = getSavedPrinter()
   if (!addr) return 'no_printer'
+  if (_isPrinting) throw new Error('Sedang mencetak — tunggu selesai dulu (PRINT_BUSY)')
   const perm = await requestBtPermissions()
   if (!perm.ok) throw new Error(perm.msg!)
   const { NativeModules } = await import('react-native')
   const mod: any = (NativeModules as any).DantsuPrinter
-  if (!mod) throw new Error('Native DantsuPrinter TIDAK TERSEDIA — install APK native v1.1.13+, bukan Expo Go')
+  if (!mod) throw new Error('Native DantsuPrinter TIDAK TERSEDIA — install APK native v1.1.14+, bukan Expo Go')
   if (!mod.printText && !mod.printTextWithSettings) throw new Error('Native DantsuPrinter.printText tidak tersedia — rebuild APK native')
   let paperSizeArg = '58mm'
   let logoPath: string | null = null
@@ -121,36 +129,68 @@ export async function printViaBluetooth(text: string): Promise<'printed'|'shared
     if (raw === 'custom') { const d = getCustomDims(); paperSizeArg = `custom:${d.wMm}x${d.hMm}` } else paperSizeArg = raw
     logoPath = getSetting('storeLogoUri','') || null
   } catch {}
+  const reqId = nextReqId()
+  const t0 = Date.now()
+  // diagnostic payload
+  const btOn = await ensureBluetoothOn()
+  let targetPaired = false
+  try { const st = await getNativePrinterStatus(); targetPaired = !!st.savedPaired } catch {}
+  logBt(`PRINT_REQUEST id=${reqId} addr=${addr} btOn=${btOn} paired=${targetPaired} paper=${paperSizeArg} logo=${!!logoPath} len=${text.length}`)
+  logBt(`PRINT_PAYLOAD id=${reqId} head=${JSON.stringify(text.slice(0,200))}`)
+  _isPrinting = true
   let lastErr: any = null
-  // 1) with logo + settings
-  if (logoPath && mod.printTextWithSettings) {
-    try {
-      const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath))
-      if (r === 'printed') return 'printed'
-      lastErr = new Error('Native printTextWithSettings(logo) balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
-  }
-  // 2) settings tanpa logo
-  if (mod.printTextWithSettings) {
-    try {
-      const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), '')
-      if (r === 'printed') return 'printed'
-      lastErr = new Error('Native printTextWithSettings balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
-  }
-  // 3) legacy printText
-  if (mod.printText) {
-    try {
+  try {
+    // PREFER single strict call with reqId (native logs it)
+    const doNative = async (): Promise<string> => {
+      if (logoPath && mod.printTextWithSettings) {
+        try {
+          try {
+            const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath), String(reqId))
+            return String(r)
+          } catch (e:any) {
+            // fallback 4-arg if 5-arg not found
+            if (String(e?.message||'').includes('got 4') || String(e?.message||'').includes('expects 5') || String(e?.code||'').includes('EUNSPECIFIED')) {
+              const r2 = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath))
+              return String(r2)
+            }
+            throw e
+          }
+        } catch (e:any) { throw e }
+      }
+      if (mod.printTextWithSettings) {
+        try {
+          const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), '', String(reqId))
+          return String(r)
+        } catch (e:any) {
+          if (String(e?.message||'').includes('got 4') || String(e?.message||'').includes('expects')) {
+            const r2 = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), '')
+            return String(r2)
+          }
+          throw e
+        }
+      }
       const r = await mod.printText(String(addr), String(text))
-      if (r === 'printed') return 'printed'
-      lastErr = new Error('Native printText balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
+      return String(r)
+    }
+    const r = await doNative()
+    const dt = Date.now()-t0
+    if (r === 'printed') {
+      logBt(`PRINT_SUCCESS id=${reqId} dt=${dt}ms`)
+      return 'printed'
+    }
+    lastErr = new Error(`Native balikan bukan printed: ${r} (id=${reqId})`)
+  } catch (e:any) {
+    const dt = Date.now()-t0
+    logBt(`PRINT_ERROR id=${reqId} dt=${dt}ms err=${e?.message||String(e)} code=${e?.code||''}`)
+    lastErr = e
+  } finally {
+    _isPrinting = false
   }
   const msg = lastErr?.message || String(lastErr || 'unknown')
-  if (lastErr?.code === 'NO_PRINTER' || msg.includes('Tidak ada printer paired') || msg.includes('NO_PRINTER')) throw new Error(msg)
-  if (msg.includes('PRINT_FAIL')) throw new Error(msg)
-  if (msg.includes('CONN') || lastErr?.code==='CONN') throw new Error('Gagal konek ke printer ('+msg+'). Cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain, masih Paired.')
-  throw new Error('Gagal mencetak ke printer: '+msg)
+  if (lastErr?.code === 'NO_PRINTER' || msg.includes('Tidak ada printer paired') || msg.includes('NO_PRINTER')) throw new Error(msg + ` [id=${reqId}]`)
+  if (msg.includes('PRINT_FAIL')) throw new Error(msg + ` [id=${reqId}]`)
+  if (msg.includes('CONN') || lastErr?.code==='CONN') throw new Error(`Gagal konek ke printer (${msg}). Cek: printer nyala, kertas ada, jarak <3m [id=${reqId}]`)
+  throw new Error(`Gagal mencetak ke printer: ${msg} [id=${reqId}]`)
 }
 
 export type NativePrinterStatus = {

@@ -68,7 +68,7 @@ import com.facebook.react.bridge.*;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothConnection;
 import com.dantsu.escposprinter.connection.bluetooth.BluetoothPrintersConnections;
 import com.dantsu.escposprinter.EscPosPrinter;
-import com.dantsu.escposprinter.exceptions.EscPosConnectionException;
+// (EscPosConnectionException unused — catch removed to avoid javac error)
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import com.dantsu.escposprinter.textparser.PrinterTextParserImg;
@@ -81,6 +81,8 @@ import android.content.IntentFilter;
 import java.util.*;
 
 public class DantsuPrinterModule extends ReactContextBaseJavaModule {
+  private static final Object PRINT_LOCK = new Object();
+  private static boolean isPrinting = false;
   public DantsuPrinterModule(ReactApplicationContext ctx){ super(ctx); }
   @Override public String getName(){ return "DantsuPrinter"; }
 
@@ -247,11 +249,15 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void printText(String address, String text, Promise p){
-    printTextWithSettings(address, text, "58mm", "", p);
+    printTextWithSettings(address, text, "58mm", "", null, p);
+  }
+  @ReactMethod
+  public void printTextWithSettings(String address, String text, String paperSize, String logoPath, Promise p){
+    printTextWithSettings(address, text, paperSize, logoPath, null, p);
   }
 
   @ReactMethod
-  public void printTextWithSettings(String address, String text, String paperSize, String logoPath, Promise p){
+  public void printTextWithSettings(String address, String text, String paperSize, String logoPath, String reqId, Promise p){
     try{
       BluetoothConnection[] list = new BluetoothPrintersConnections().getList();
       BluetoothConnection target = null;
@@ -305,7 +311,31 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
         else if(ps.contains("58") || ps.contains("57")){ mmWidth = 48f; nbrChars = 32; }
         else if(ps.contains("50")){ mmWidth = 48f; nbrChars = 32; }
       }
-      EscPosPrinter printer = new EscPosPrinter(target.connect(), 203, mmWidth, nbrChars);
+      if(reqId==null || reqId.isEmpty()) reqId = "R-" + System.currentTimeMillis();
+      String logTag = "DantsuPrinter["+reqId+"]";
+      synchronized(PRINT_LOCK){
+        if(isPrinting){
+          android.util.Log.w(logTag, "PRINT_BUSY reject — another print in progress");
+          p.reject("BUSY", "Sedang mencetak — tunggu selesai dulu");
+          return;
+        }
+        isPrinting = true;
+      }
+      EscPosPrinter printer = null;
+      String targetAddr = "";
+      try{ targetAddr = target.getDevice().getAddress(); }catch(Exception ignore){ targetAddr = address; }
+      long t0 = System.currentTimeMillis();
+      android.util.Log.d(logTag, "PRINT_REQUEST addr="+targetAddr+" btOn="+(BluetoothAdapter.getDefaultAdapter()!=null && BluetoothAdapter.getDefaultAdapter().isEnabled())+" len="+(text!=null?text.length():0)+" paper="+paperSize);
+      android.util.Log.d(logTag, "CONNECT_START addr="+targetAddr);
+      try{
+        printer = new EscPosPrinter(target.connect(), 203, mmWidth, nbrChars);
+        android.util.Log.d(logTag, "CONNECT_SUCCESS dt="+(System.currentTimeMillis()-t0)+"ms");
+      }catch(Exception e){
+        synchronized(PRINT_LOCK){ isPrinting=false; }
+        android.util.Log.e(logTag, "CONNECT_ERROR: "+e.getMessage(), e);
+        p.reject("CONN", "Gagal konek ke printer ("+e.getMessage()+") — cek printer nyala & masih Paired [id="+reqId+"]", e);
+        return;
+      }
       String logoPart = "";
       if(logoPath != null && logoPath.length() > 5){
         try{
@@ -321,41 +351,46 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
             String hex = PrinterTextParserImg.bitmapToHexadecimalString(printer, bmp);
             logoPart = "[C]<img>" + hex + "</img>\\n";
           }
-        }catch(Exception _le){}
+        }catch(Exception _le){ android.util.Log.w(logTag, "LOGO_SKIP: "+_le.getMessage()); }
       }
-      android.util.Log.d("DantsuPrinter", "CONNECT target="+target.getDevice().getAddress()+" PRINT_START mm="+mmWidth+" chars="+nbrChars);
+      android.util.Log.d(logTag, "PRINT_START mm="+mmWidth+" chars="+nbrChars+" logo="+(logoPart.length()>0));
       String formatted = logoPart + "[C]<font size='big'>KASIR KITA</font>\\n" + "[L]\\n" + text + "\\n";
       boolean printedOk = false;
       Exception lastErr = null;
+      // Reason: raw test payload ~150 chars vs real receipt 600-1200 + logo hex -> different code path in DantSu parser
+      android.util.Log.d(logTag, "PAYLOAD len="+text.length()+" tail="+formatted.length());
       try{
-        android.util.Log.d("DantsuPrinter", "PRINT_TRY cut");
+        android.util.Log.d(logTag, "PRINT_TRY cut");
         printer.printFormattedTextAndCut(formatted);
         printedOk = true;
-        android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS cut");
+        android.util.Log.d(logTag, "PRINT_SUCCESS cut dt="+(System.currentTimeMillis()-t0)+"ms");
       } catch(Exception e){
         lastErr = e;
-        android.util.Log.e("DantsuPrinter", "PRINT_ERROR cut: "+e.getMessage(), e);
+        android.util.Log.e(logTag, "PRINT_ERROR cut: "+e.getMessage(), e);
         try{
-          android.util.Log.d("DantsuPrinter", "PRINT_TRY fallback");
+          android.util.Log.d(logTag, "PRINT_TRY fallback plain");
           printer.printFormattedText("[L]" + text);
           printedOk = true;
-          android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS fallback");
+          android.util.Log.d(logTag, "PRINT_SUCCESS fallback dt="+(System.currentTimeMillis()-t0)+"ms");
         } catch(Exception e2){
           lastErr = e2;
-          android.util.Log.e("DantsuPrinter", "PRINT_ERROR fallback: "+e2.getMessage(), e2);
+          android.util.Log.e(logTag, "PRINT_ERROR fallback: "+e2.getMessage(), e2);
         }
       }
-      try{ printer.disconnectPrinter(); }catch(Exception ignore){}
+      // Flush before disconnect — DantSu BT socket needs time to drain
+      try{ Thread.sleep(250); }catch(Exception ignore){}
+      android.util.Log.d(logTag, "DISCONNECT_START");
+      try{ printer.disconnectPrinter(); android.util.Log.d(logTag, "DISCONNECT_SUCCESS dt="+(System.currentTimeMillis()-t0)+"ms"); }catch(Exception e){ android.util.Log.e(logTag, "DISCONNECT_ERROR: "+e.getMessage(), e); }
+      synchronized(PRINT_LOCK){ isPrinting=false; }
       if(printedOk){
-        android.util.Log.d("DantsuPrinter", "PRINT_DONE resolved printed");
+        android.util.Log.d(logTag, "PRINT_DONE printed");
         p.resolve("printed");
       } else {
         String msg = lastErr!=null && lastErr.getMessage()!=null ? lastErr.getMessage() : "unknown";
-        android.util.Log.e("DantsuPrinter", "PRINT_FAIL reject: "+msg);
-        p.reject("PRINT_FAIL", "Gagal print ("+msg+") — cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain", lastErr);
+        android.util.Log.e(logTag, "PRINT_FAIL reject: "+msg);
+        p.reject("PRINT_FAIL", "Gagal print ("+msg+") [id="+reqId+"] — cek: printer nyala, kertas ada, jarak <3m", lastErr);
       }
-    }catch(EscPosConnectionException e){
-      p.reject("CONN", e.getMessage(), e);
+      return;
     }catch(Exception e){ p.reject("ERR", e.getMessage(), e); }
   }
 
