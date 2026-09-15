@@ -430,23 +430,44 @@ public class DantsuPrinterPackage implements ReactPackage {
 `.trim();
     await fs.promises.writeFile(path.join(base, 'DantsuPrinterModule.java'), modJava, 'utf8');
     await fs.promises.writeFile(path.join(base, 'DantsuPrinterPackage.java'), pkgJava, 'utf8');
+    // Register DantsuPrinterPackage in MainApplication (Kotlin + legacy Java)
     const appFiles = [
-      path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm', 'MainApplication.java'),
       path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm', 'MainApplication.kt'),
+      path.join(cfg.modRequest.platformProjectRoot, 'app', 'src', 'main', 'java', 'com', 'chukie99', 'posumkm', 'MainApplication.java'),
     ];
     for(const f of appFiles){
       try{
-        let s = await fs.promises.readFile(f, 'utf8');
-        if(!s.includes('DantsuPrinterPackage')){
-          s = s.replace(/import\s+[^;]+;/, (m)=> m + "\nimport com.chukie99.posumkm.DantsuPrinterPackage;");
-          s = s.replace(/new\s+PackageList\(this\)\.getPackages\(\)/, "new PackageList(this).getPackages()");
-          s = s.replace(/\.getPackages\(\)/, ".getPackages() { packages.add(new DantsuPrinterPackage()); return packages; } // patched");
-          if(!s.includes('DantsuPrinterPackage')){
-            s = s.replace(/return packages;/, "packages.add(new DantsuPrinterPackage());\n      return packages;");
-          }
-          await fs.promises.writeFile(f, s, 'utf8');
+        let src = await fs.promises.readFile(f, 'utf8');
+        if(src.includes('DantsuPrinterPackage')) continue;
+        // add import (kotlin: import ... ; java: import ...;)
+        if(src.includes('import com.facebook.react.ReactPackage') && !src.includes('DantsuPrinterPackage')){
+          src = src.replace('import com.facebook.react.ReactPackage', 'import com.chukie99.posumkm.DantsuPrinterPackage\nimport com.facebook.react.ReactPackage');
+        } else if(src.includes('import com.facebook.react.') && !src.includes('DantsuPrinterPackage')){
+          // fallback: inject after first import line
+          src = src.replace(/import\s+[^\n]+/, (m)=> m + "\nimport com.chukie99.posumkm.DantsuPrinterPackage;");
         }
-      }catch(e){}
+        // Kotlin: PackageList(this).packages.apply { ... } -> inject add()
+        if(src.includes('PackageList(this).packages.apply')){
+          if(src.includes('apply {') && src.includes('// Packages that cannot be autolinked')){
+            src = src.replace('// Packages that cannot be autolinked yet can be added manually here, for example:', 'add(DantsuPrinterPackage())');
+            src = src.replace('// add(MyReactNativePackage())', '');
+          } else if(src.includes('packages.apply {')){
+            src = src.replace(/packages\.apply\s*\{/, 'packages.apply {\n          add(DantsuPrinterPackage())');
+          } else {
+            src = src.replace(/PackageList\(this\)\.packages/, 'PackageList(this).packages.apply { add(DantsuPrinterPackage()) } // patched');
+          }
+          // cleanup duplicate apply if any
+          src = src.replace(/apply\s*\{\s*\n\s*add\(DantsuPrinterPackage\(\)\)\s*\n\s*\n\s*add\(DantsuPrinterPackage\(\)\)/, 'apply {\n          add(DantsuPrinterPackage())');
+        }
+        // Java legacy: new PackageList(this).getPackages()
+        if(src.includes('getPackages()') && !src.includes('DantsuPrinterPackage')){
+          src = src.replace(/return\s+packages\s*;/, 'packages.add(new DantsuPrinterPackage()); return packages;');
+          if(!src.includes('DantsuPrinterPackage')){
+            src = src.replace(/\.getPackages\(\)/, '.getPackages() { java.util.List<ReactPackage> packages = new PackageList(this).getPackages(); packages.add(new DantsuPrinterPackage()); return packages; } // patched');
+          }
+        }
+        await fs.promises.writeFile(f, src, 'utf8');
+      }catch(e){ if(e && e.code !== 'ENOENT') console.error('with-dantsu MainApplication patch error', e); }
     }
     return cfg;
   }]);
