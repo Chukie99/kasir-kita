@@ -323,12 +323,89 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
           }
         }catch(Exception _le){}
       }
+      android.util.Log.d("DantsuPrinter", "CONNECT target="+target.getDevice().getAddress()+" PRINT_START mm="+mmWidth+" chars="+nbrChars);
       String formatted = logoPart + "[C]<font size='big'>KASIR KITA</font>\\n" + "[L]\\n" + text + "\\n";
-      try{ printer.printFormattedTextAndCut(formatted); } catch(Exception _e2){ try{ printer.printFormattedText("[L]" + text); } catch(Exception _e3){} }
-      try{ printer.disconnectPrinter(); } catch(Exception ignore){}
-      p.resolve("printed");
+      boolean printedOk = false;
+      Exception lastErr = null;
+      try{
+        android.util.Log.d("DantsuPrinter", "PRINT_TRY cut");
+        printer.printFormattedTextAndCut(formatted);
+        printedOk = true;
+        android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS cut");
+      } catch(Exception e){
+        lastErr = e;
+        android.util.Log.e("DantsuPrinter", "PRINT_ERROR cut: "+e.getMessage(), e);
+        try{
+          android.util.Log.d("DantsuPrinter", "PRINT_TRY fallback");
+          printer.printFormattedText("[L]" + text);
+          printedOk = true;
+          android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS fallback");
+        } catch(Exception e2){
+          lastErr = e2;
+          android.util.Log.e("DantsuPrinter", "PRINT_ERROR fallback: "+e2.getMessage(), e2);
+        }
+      }
+      try{ printer.disconnectPrinter(); }catch(Exception ignore){}
+      if(printedOk){
+        android.util.Log.d("DantsuPrinter", "PRINT_DONE resolved printed");
+        p.resolve("printed");
+      } else {
+        String msg = lastErr!=null && lastErr.getMessage()!=null ? lastErr.getMessage() : "unknown";
+        android.util.Log.e("DantsuPrinter", "PRINT_FAIL reject: "+msg);
+        p.reject("PRINT_FAIL", "Gagal print ("+msg+") — cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain", lastErr);
+      }
     }catch(EscPosConnectionException e){
       p.reject("CONN", e.getMessage(), e);
+    }catch(Exception e){ p.reject("ERR", e.getMessage(), e); }
+  }
+
+  @ReactMethod
+  public void getNativePrinterStatus(String savedAddr, Promise p){
+    try{
+      WritableMap m = Arguments.createMap();
+      boolean hasNative = true;
+      m.putBoolean("hasModule", hasNative);
+      BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
+      boolean btOn = adapter!=null && adapter.isEnabled();
+      m.putBoolean("bluetoothOn", btOn);
+      m.putString("savedAddr", savedAddr!=null?savedAddr:"");
+      // paired count
+      int pairedCount = 0;
+      boolean savedPaired = false;
+      boolean targetFound = false;
+      String targetName = null;
+      try{
+        BluetoothConnection[] list = new BluetoothPrintersConnections().getList();
+        if(list!=null){
+          pairedCount = list.length;
+          for(BluetoothConnection c: list){
+            try{
+              String a = c.getDevice().getAddress();
+              if(savedAddr!=null && a!=null && a.equalsIgnoreCase(savedAddr)){
+                savedPaired = true;
+                targetFound = true;
+                targetName = c.getDevice().getName();
+              }
+            }catch(Exception ignore){}
+          }
+        }
+      }catch(Exception ignore){}
+      // if not found in bonded, try remote device exists
+      if(!targetFound && savedAddr!=null && !savedAddr.isEmpty()){
+        try{
+          BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+          if(ad!=null){
+            BluetoothDevice dev = ad.getRemoteDevice(savedAddr);
+            if(dev!=null){ targetFound = true; try{ targetName = dev.getName(); }catch(Exception ignore){} }
+          }
+        }catch(Exception ignore){}
+      }
+      m.putInt("pairedCount", pairedCount);
+      m.putBoolean("savedPaired", savedPaired);
+      m.putBoolean("targetFound", targetFound);
+      if(targetName!=null) m.putString("targetName", targetName); else m.putString("targetName", "");
+      android.util.Log.d("DantsuPrinter", "STATUS btOn="+btOn+" paired="+pairedCount+" savedPaired="+savedPaired+" targetFound="+targetFound);
+      p.resolve(m);
     }catch(Exception e){ p.reject("ERR", e.getMessage(), e); }
   }
 

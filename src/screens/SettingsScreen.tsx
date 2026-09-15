@@ -7,7 +7,7 @@ import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRan
 import DatePickerModal from '../components/DatePickerModal'
 import { createBackup, restoreFromSql } from '../utils/backup'
 import { getSetting, setSetting, getPaperSize, getPaperLabel, type PaperSize } from '../utils/settings'
-import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, discoverPrinters, openSystemBluetoothSettings, ensureBluetoothOn, type BtDevice } from '../utils/bluetooth'
+import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, discoverPrinters, openSystemBluetoothSettings, ensureBluetoothOn, getNativePrinterStatus, printViaBluetooth, type BtDevice } from '../utils/bluetooth'
 import PaperPickerModal from '../components/PaperPickerModal'
 
 interface Props {
@@ -272,22 +272,35 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
           {btAddr ? <View style={{ flexDirection:'row', gap:8, marginTop:6, flexWrap:'wrap' }}>
             <Button mode="contained" icon="printer-check" onPress={async()=>{
               try{
-                showStatus('Test konek ke '+btAddr+'...', false)
-                const { printViaBluetooth } = await import('../utils/bluetooth')
-                const { buildReceiptText } = await import('../utils/receipt')
-                // buat struk dummy kalau belum ada transaksi
-                let txt = 'TEST PRINT — KASIR KITA\nPrinter: '+(btName||btAddr)+'\nWaktu: '+new Date().toLocaleString('id-ID')+'\n'+'-'.repeat(32)+'\nJika ini tercetak, printer SIAP.\n'
-                try{
-                  const db = require('../db/database').getDb()
-                  const row = db.getFirstSync('SELECT id FROM transactions ORDER BY id DESC LIMIT 1') as any
-                  if(row?.id) txt = buildReceiptText(row.id)
-                }catch{}
+                showStatus('Test Print ke '+(btName||btAddr)+' via Bluetooth...', false)
+                // TEST PRINT real — tidak pakai share/PDF, harus via Bluetooth native
+                const txt = 'TEST PRINT \u2014 KASIR KITA\n'
+                  + 'Printer: '+(btName||btAddr)+'\n'
+                  + 'Waktu: '+new Date().toLocaleString('id-ID')+'\n'
+                  + '-'.repeat(32)+'\n'
+                  + 'Jika baris ini tercetak, printer SIAP.\n'
+                  + 'KASIR KITA — Cetak thermal Bluetooth Classic\n'
+                  + 'Line 1/3  |  Line 2/3  |  Line 3/3\n'
+                  + '-'.repeat(32)+'\n'
                 const r = await printViaBluetooth(txt)
-                if(r==='printed') showStatus('✓ Test print BERHASIL — printer siap pakai!', false)
-                else if(r==='no_printer') showStatus('Belum ada printer tersimpan.', true)
-                else showStatus('Dikirim sebagai share/PDF fallback — coba lagi atau cek kertas.', true)
-              }catch(e:any){ showStatus('Test gagal: '+(e?.message||String(e)), true) }
+                if(r==='printed') showStatus('\u2713 TEST PRINT BERHASIL — printer mencetak!', false)
+                else showStatus('Gagal Test Print: native balikan "'+String(r)+'". Cek kertas & Pair.', true)
+              }catch(e:any){ showStatus('Gagal mencetak ke printer: '+(e?.message||String(e)), true) }
             }} compact>Test Print</Button>
+            <Button mode="outlined" icon="stethoscope" onPress={async()=>{
+              try{
+                showStatus('Diagnosa printer...', false)
+                const s = await getNativePrinterStatus()
+                const lines = [
+                  `Module Dantsu: ${s.hasModule ? 'ADA ✓' : 'TIDAK ADA ✗ (rebuild APK)'}`,
+                  `Bluetooth HP: ${s.bluetoothOn ? 'NYALA ✓' : 'MATI ✗'}`,
+                  `Saved MAC: ${s.savedAddr || '(kosong)'}`,
+                  `Paired di HP: ${s.pairedCount} device${s.savedPaired ? ' — saved Paired ✓' : s.savedAddr ? ' — saved TIDAK Paired ✗' : ''}`,
+                  `Target ditemukan: ${s.targetFound ? 'YA ✓' : 'TIDAK ✗'}${s.targetName ? ' ('+s.targetName+')' : ''}`,
+                ]
+                showStatus(lines.join('\n'), !s.hasModule || !s.bluetoothOn || !s.targetFound)
+              }catch(e:any){ showStatus('Diagnosa gagal: '+(e?.message||String(e)), true) }
+            }} compact>Diagnosa</Button>
             <Button mode="outlined" icon="delete" onPress={()=>{ savePrinter(''); savePrinterName(''); setBtAddr(''); setBtName(''); setPaired([]); setDiscovered([]); showStatus('Printer dihapus — fallback ke PDF') }} compact>Hapus Printer</Button>
           </View> : null}
           {!editingBt ? (

@@ -109,36 +109,81 @@ export async function printViaBluetooth(text: string): Promise<'printed'|'shared
   if (!addr) return 'no_printer'
   const perm = await requestBtPermissions()
   if (!perm.ok) throw new Error(perm.msg!)
+  const { NativeModules } = await import('react-native')
+  const mod: any = (NativeModules as any).DantsuPrinter
+  if (!mod) throw new Error('Native DantsuPrinter TIDAK TERSEDIA — install APK native v1.1.13+, bukan Expo Go')
+  if (!mod.printText && !mod.printTextWithSettings) throw new Error('Native DantsuPrinter.printText tidak tersedia — rebuild APK native')
+  let paperSizeArg = '58mm'
+  let logoPath: string | null = null
   try {
-    const { NativeModules } = await import('react-native')
-    const mod: any = (NativeModules as any).DantsuPrinter
-    if (!mod || !mod.printText) return 'shared'
-    let paperSizeArg = '58mm'
-    let logoPath: string | null = null
+    const { getPaperSize, getCustomDims, getSetting } = await import('./settings')
+    const raw = getPaperSize()
+    if (raw === 'custom') { const d = getCustomDims(); paperSizeArg = `custom:${d.wMm}x${d.hMm}` } else paperSizeArg = raw
+    logoPath = getSetting('storeLogoUri','') || null
+  } catch {}
+  let lastErr: any = null
+  // 1) with logo + settings
+  if (logoPath && mod.printTextWithSettings) {
     try {
-      const { getPaperSize, getCustomDims, getSetting } = await import('./settings')
-      const raw = getPaperSize()
-      if (raw === 'custom') {
-        const d = getCustomDims()
-        paperSizeArg = `custom:${d.wMm}x${d.hMm}`
-      } else {
-        paperSizeArg = raw
-      }
-      logoPath = getSetting('storeLogoUri','') || null
-    } catch {}
-    if (logoPath) {
-      try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath)); return r === 'printed' ? 'printed' : 'shared' } } catch {}
-    }
-    try { if (mod.printTextWithSettings) { const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), ''); return r === 'printed' ? 'printed' : 'shared' } } catch {}
-    try { const r = await mod.printText(String(addr), String(text), String(paperSizeArg)); return r === 'printed' ? 'printed' : 'shared' } catch {}
-    const r = await mod.printText(String(addr), String(text))
-    return r === 'printed' ? 'printed' : 'shared'
-  } catch (e: any) {
-    // lempar biar UI bisa tampilkan error jelas
-    if (e?.code === 'NO_PRINTER' || String(e?.message||'').includes('Tidak ada printer paired')) throw e
-    if (String(e?.message||'').includes('CONN')) throw new Error('Gagal konek ke printer. Pastikan printer nyala, kertas ada, dan masih Paired di Bluetooth HP.')
-    throw new Error(e?.message || 'Gagal print bluetooth — ' + String(e))
+      const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath))
+      if (r === 'printed') return 'printed'
+      lastErr = new Error('Native printTextWithSettings(logo) balikan bukan printed: '+String(r))
+    } catch (e:any) { lastErr = e }
   }
+  // 2) settings tanpa logo
+  if (mod.printTextWithSettings) {
+    try {
+      const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), '')
+      if (r === 'printed') return 'printed'
+      lastErr = new Error('Native printTextWithSettings balikan bukan printed: '+String(r))
+    } catch (e:any) { lastErr = e }
+  }
+  // 3) legacy printText
+  if (mod.printText) {
+    try {
+      const r = await mod.printText(String(addr), String(text))
+      if (r === 'printed') return 'printed'
+      lastErr = new Error('Native printText balikan bukan printed: '+String(r))
+    } catch (e:any) { lastErr = e }
+  }
+  const msg = lastErr?.message || String(lastErr || 'unknown')
+  if (lastErr?.code === 'NO_PRINTER' || msg.includes('Tidak ada printer paired') || msg.includes('NO_PRINTER')) throw new Error(msg)
+  if (msg.includes('PRINT_FAIL')) throw new Error(msg)
+  if (msg.includes('CONN') || lastErr?.code==='CONN') throw new Error('Gagal konek ke printer ('+msg+'). Cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain, masih Paired.')
+  throw new Error('Gagal mencetak ke printer: '+msg)
+}
+
+export type NativePrinterStatus = {
+  hasModule: boolean
+  bluetoothOn: boolean
+  savedAddr: string
+  pairedCount: number
+  savedPaired: boolean
+  targetFound: boolean
+  targetName: string
+}
+
+export async function getNativePrinterStatus(): Promise<NativePrinterStatus> {
+  const { NativeModules } = await import('react-native')
+  const mod: any = (NativeModules as any).DantsuPrinter
+  const saved = getSavedPrinter() || ''
+  if (!mod || !mod.getNativePrinterStatus) {
+    // fallback: best effort
+    const on = await ensureBluetoothOn()
+    return { hasModule: !!mod, bluetoothOn: on, savedAddr: saved, pairedCount: -1, savedPaired: false, targetFound: false, targetName: '' }
+  }
+  try {
+    const m: any = await mod.getNativePrinterStatus(String(saved))
+    return {
+      hasModule: !!m.hasModule,
+      bluetoothOn: !!m.bluetoothOn,
+      savedAddr: String(m.savedAddr||saved),
+      pairedCount: Number(m.pairedCount??-1),
+      savedPaired: !!m.savedPaired,
+      targetFound: !!m.targetFound,
+      targetName: String(m.targetName||''),
+    }
+  } catch (e:any) { throw new Error(e?.message||String(e)) }
 }
 
 export async function printViaBluetoothFallback(text: string): Promise<'shared'|'unsupported'> {
