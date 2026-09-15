@@ -123,7 +123,8 @@ export function voidTransaction(transactionId: number, reason = ''): void {
     )
     for (const it of items) {
       // cari produk by name yang masih aktif/tidak — stok null = tidak dilacak
-      const prod = db.getFirstSync<{ id: number; stock: number | null }>('SELECT id, stock FROM products WHERE name = ? LIMIT 1', [it.product_name])
+      // surgical: COLLATE NOCASE + prioritas is_active=1 biar kalau nama kembar gak salah
+      const prod = db.getFirstSync<{ id: number; stock: number | null }>('SELECT id, stock FROM products WHERE name = ? COLLATE NOCASE ORDER BY is_active DESC, id LIMIT 1', [it.product_name])
       if (prod && prod.stock !== null) {
         db.runSync('UPDATE products SET stock = stock + ? WHERE id = ?', [it.qty, prod.id])
       }

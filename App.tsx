@@ -8,7 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons'
 
 import * as SplashScreen from 'expo-splash-screen'
 import { initDatabase, seedDemoData } from './src/db/database'
-import { theme, colors, applyTheme } from './src/theme/theme'
+import { theme, colors, applyTheme, getPaperTheme } from './src/theme/theme'
 import { getTheme, getSetting, setSetting, type ThemePref } from './src/utils/settings'
 import { getDeviceId, formatDeviceCode, isActivated, verifyToken } from './src/license/license'
 import ActivationGate from './src/screens/ActivationGate'
@@ -30,6 +30,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('kasir')
   const [refreshKey, setRefreshKey] = useState(0)
   const [dark, setDark] = useState(false)
+  const [paperTheme, setPaperTheme] = useState(theme)
   const [themeTick, setThemeTick] = useState(0)
   const [produkModalOpen, setProdukModalOpen] = useState(false)
 
@@ -43,6 +44,7 @@ export default function App() {
       setActivated(isActivated())
       const pref: ThemePref = getTheme()
       applyTheme(pref)
+      setPaperTheme(getPaperTheme(pref))
       setDark(pref === 'dark')
       setReady(true)
     })()
@@ -75,6 +77,7 @@ export default function App() {
     const next: ThemePref = dark ? 'light' : 'dark'
     setSetting('theme', next)
     applyTheme(next)
+    setPaperTheme(getPaperTheme(next))
     setDark(!dark)
     setThemeTick((t) => t + 1)
   }
@@ -96,7 +99,7 @@ export default function App() {
   }
 
   return (
-    <PaperProvider theme={theme}>
+    <PaperProvider theme={paperTheme}>
       <SafeAreaProvider>
         <StatusBar style={dark ? 'light' : 'dark'} />
         {!activated ? (
@@ -126,12 +129,12 @@ export default function App() {
             </Appbar.Header>
 
             <View style={{ flex: 1, backgroundColor: colors.bg }}>
-              {tab === 'kasir' && <CashierScreen onSold={() => setRefreshKey((k) => k + 1)} />}
-              {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} />}
-              {tab === 'riwayat' && <HistoryScreen key={refreshKey} />}
-              {tab === 'kasbon' && <KasbonScreen key={refreshKey} onChanged={() => setRefreshKey(k => k+1)} />}
-              {tab === 'supplier' && <SupplierScreen key={refreshKey} />}
-              {tab === 'shift' && <ShiftScreen key={refreshKey} />}
+              {tab === 'kasir' && <CashierScreen key={`kasir-${refreshKey}-${themeTick}`} onSold={() => setRefreshKey((k) => k + 1)} />}
+              {tab === 'produk' && <ManageProductsScreen key={refreshKey} onModalChange={setProdukModalOpen} onChanged={() => setRefreshKey(k => k+1)} />}
+              {tab === 'riwayat' && <HistoryScreen key={`riwayat-${refreshKey}-${themeTick}`} />}
+              {tab === 'kasbon' && <KasbonScreen key={`kasbon-${refreshKey}-${themeTick}`} onChanged={() => setRefreshKey(k => k+1)} />}
+              {tab === 'supplier' && <SupplierScreen key={`supplier-${refreshKey}-${themeTick}`} />}
+              {tab === 'shift' && <ShiftScreen key={`shift-${refreshKey}-${themeTick}`} />}
               {tab === 'pengaturan' && (
                 <SettingsScreen
                   dark={dark}

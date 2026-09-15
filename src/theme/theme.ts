@@ -96,7 +96,37 @@ function palette(mode: 'light' | 'dark') {
 
 export let colors: ReturnType<typeof palette> = palette('light')
 
+export function getPaperTheme(mode: 'light' | 'dark') {
+  const c = palette(mode)
+  return {
+    ...MD3LightTheme,
+    colors: {
+      ...MD3LightTheme.colors,
+      background: c.bg,
+      surface: c.surface,
+      surfaceVariant: c.chipBg,
+      primary: c.green,
+      onPrimary: '#FFFFFF',
+      primaryContainer: mode === 'dark' ? '#2A3F55' : '#DBE6F0',
+      onPrimaryContainer: c.text,
+      secondary: c.greenDark,
+      onSecondary: '#FFFFFF',
+      secondaryContainer: c.chipBg,
+      onSecondaryContainer: c.text,
+      outline: c.border,
+      outlineVariant: c.border,
+      error: c.error,
+      onError: '#FFFFFF',
+      errorContainer: mode === 'dark' ? '#3A2A28' : '#FBE9E4',
+      onErrorContainer: c.text,
+    },
+    fonts: configureFonts({ config: fontConfig }),
+  }
+}
+
 export function applyTheme(mode: 'light' | 'dark') {
-  // mutate existing object so StyleSheet references update
-  Object.assign(colors, palette(mode))
+  const next = palette(mode)
+  Object.assign(colors, next)
+  // also mutate Paper theme in-place so PaperProvider picks it up without remount hacks
+  Object.assign(theme.colors as any, getPaperTheme(mode).colors)
 }

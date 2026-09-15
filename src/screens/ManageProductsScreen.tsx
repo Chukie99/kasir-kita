@@ -12,7 +12,7 @@ const rupiah = (n: number) => 'Rp ' + Math.round(n).toLocaleString('id-ID')
 interface EditingState { id: number | null; name: string; price: string; cost: string; stock: string; imageUri: string | null; categoryId: number | null }
 const EMPTY_EDIT: EditingState = { id: null, name: '', price: '', cost: '', stock: '', imageUri: null, categoryId: null }
 
-export default function ManageProductsScreen({ onModalChange }: { onModalChange?: (open: boolean) => void }) {
+export default function ManageProductsScreen({ onModalChange, onChanged }: { onModalChange?: (open: boolean) => void; onChanged?: () => void }) {
   const [products, setProducts] = useState<ProductRow[]>(() => listAllProducts())
   const [categories, setCategories] = useState(() => listCategories())
   const [editing, setEditing] = useState<EditingState | null>(null)
@@ -21,7 +21,7 @@ export default function ManageProductsScreen({ onModalChange }: { onModalChange?
 
   React.useEffect(() => { onModalChange?.(!!editing) }, [editing])
 
-  const refresh = () => setProducts(listAllProducts())
+  const refresh = () => { setProducts(listAllProducts()); onChanged?.() }
 
   const openAdd = () => setEditing({ ...EMPTY_EDIT })
 

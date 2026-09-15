@@ -13,6 +13,7 @@ export async function createBackup(): Promise<'shared' | 'unavailable'> {
   const tables = [
     'categories', 'products', 'modifier_groups', 'modifiers',
     'transactions', 'transaction_items', 'license', 'settings',
+    'shifts', 'customers', 'suppliers', 'purchases', 'purchase_items', 'cash_movements',
   ]
   for (const table of tables) {
     try {
@@ -65,10 +66,17 @@ export function restoreFromSql(sqlText: string): { ok: boolean; message: string 
   const db = getDb()
   db.execSync('BEGIN')
   try {
-    for (const t of ['transaction_items', 'transactions', 'modifiers',
-                     'modifier_groups', 'products', 'categories']) {
-      db.execSync(`DELETE FROM ${t};`)
+    // Hapus dalam urutan FK child dulu, semua tabel yang ada di dump
+    for (const t of ['transaction_items', 'purchase_items', 'cash_movements',
+                     'transactions', 'purchases',
+                     'modifiers', 'modifier_groups',
+                     'products', 'categories',
+                     'shifts', 'customers', 'suppliers']) {
+      try { db.execSync(`DELETE FROM ${t};`) } catch {}
     }
+    // license & settings pakai DELETE juga biar INSERT tidak PK conflict (backup pakai INSERT biasa)
+    try { db.execSync(`DELETE FROM license;`) } catch {}
+    try { db.execSync(`DELETE FROM settings;`) } catch {}
     db.execSync(stripped)
     db.execSync('COMMIT')
     return { ok: true, message: 'Data berhasil dipulihkan' }
