@@ -126,7 +126,10 @@ export async function printViaBluetooth(text: string, opts?: { skipLogo?: boolea
     const { getPaperSize, getCustomDims, getSetting } = await import('./settings')
     const raw = getPaperSize()
     if (raw === 'custom') { const d = getCustomDims(); paperSizeArg = `custom:${d.wMm}x${d.hMm}` } else paperSizeArg = raw
-    logoPath = opts?.skipLogo ? null : (getSetting('storeLogoUri','') || null)
+    const debugNoLogo = getSetting('debugDisableLogo','') === '1'
+    const forceSkip = !!opts?.skipLogo || debugNoLogo
+    logoPath = forceSkip ? null : (getSetting('storeLogoUri','') || null)
+    if (debugNoLogo) console.log(`[BT] [${reqId}] DEBUG_DISABLE_LOGO=1 -> force skipLogo`)
   } catch {}
   console.log(`[BT] [${reqId}] ADDRESS ${addr}`)
   console.log(`[BT] [${reqId}] PAPER_SIZE ${paperSizeArg}`)

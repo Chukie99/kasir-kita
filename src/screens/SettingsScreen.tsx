@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { View, StyleSheet, ScrollView, Linking, Pressable, Alert, Image } from 'react-native'
-import { Text, Surface, Button, List, TextInput } from 'react-native-paper'
+import { Text, Surface, Button, List, TextInput, Switch } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import { exportDailyReport } from '../utils/export'
 import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRange } from '../utils/export_period'
@@ -32,6 +32,7 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
   const [btName, setBtName] = useState(() => getSavedPrinterName() || '')
   const [editingBt, setEditingBt] = useState(false)
   const [paired, setPaired] = useState<BtDevice[]>([])
+  const [disableLogo, setDisableLogo] = useState(() => getSetting('debugDisableLogo', '') === '1')
   const [discovered, setDiscovered] = useState<BtDevice[]>([])
   const [scanning, setScanning] = useState(false)
   // Laporan periode — CSV (anti-FC, tanpa xlsx)
@@ -229,6 +230,17 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
         </View>
       </Surface>
       <PaperPickerModal visible={showPaperPicker} value={paperSize as PaperSize} onSelect={(v)=>{ setPaperSize(v); setSetting('paperSize', v); setStatus(`Kertas: ${getPaperLabel(v as PaperSize)} — PDF & cetak akan pakai ini`); setTimeout(()=>setStatus(''),3500) }} onClose={()=>setShowPaperPicker(false)} />
+
+      <Text style={styles.section}>Debug Cetak</Text>
+      <Surface style={styles.card} elevation={0}>
+        <View style={{ padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontWeight: '800', color: colors.text }}>Debug: Disable Logo</Text>
+            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>Kalau ON, transaksi cetak tanpa logo (isolasi bitmap/payload). Test Print tetap tanpa logo.</Text>
+          </View>
+          <Switch value={disableLogo} onValueChange={(val)=>{ setDisableLogo(val); setSetting('debugDisableLogo', val ? '1' : '0'); showStatus(val ? 'Debug Disable Logo: ON — cetak tanpa logo' : 'Debug Disable Logo: OFF — cetak pakai logo', false) }} />
+        </View>
+      </Surface>
 
       <Text style={styles.section}>Tema</Text>
       <Surface style={styles.card} elevation={0}>
