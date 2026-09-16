@@ -1,5 +1,5 @@
 import React from 'react'
-import { View, StyleSheet, Pressable, ScrollView } from 'react-native'
+import { View, StyleSheet, Pressable, ScrollView, Alert } from 'react-native'
 import { Text, Surface, Modal, Button, SegmentedButtons, TextInput } from 'react-native-paper'
 import { colors } from '../theme/theme'
 import type { CartLine } from '../utils/pos'
@@ -176,7 +176,7 @@ export default function CheckoutSheet({ visible, cart, onClose, onConfirm }: Pro
       <Button
         mode="contained"
         disabled={!enough || cart.length === 0}
-        onPress={() => { if (isBon && !customerName.trim()) { alert('Isi Atas Nama untuk Bon'); return; } const bonPaid = isBon ? parseInt(bonPaidStr.replace(/\D/g,'')||'0',10) : 0; if (isBon && bonPaid > finalTotal) { alert('Bayar awal melebihi total'); return; } onConfirm(method, paid, calculatedDiscount, customerName.trim(), isBon ? { isBon: true, bonDueDate: bonDueDate.trim() || undefined, bonPaid } : undefined); reset() }}
+        onPress={() => { if (isBon && !customerName.trim()) { Alert.alert('Bon butuh nama', 'Isi Atas Nama untuk Bon'); return; } const bonPaid = isBon ? parseInt(bonPaidStr.replace(/\D/g,'')||'0',10) : 0; if (isBon && bonPaid > finalTotal) { Alert.alert('Pembayaran Gagal', 'Bayar awal melebihi total.'); return; } onConfirm(method, paid, calculatedDiscount, customerName.trim(), isBon ? { isBon: true, bonDueDate: bonDueDate.trim() || undefined, bonPaid } : undefined); reset() }}
         contentStyle={styles.confirmBtn}
         style={{ marginTop: 16 }}
       >
