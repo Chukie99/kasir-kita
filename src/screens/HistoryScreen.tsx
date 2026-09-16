@@ -201,13 +201,12 @@ export default function HistoryScreen() {
                   if (!detail) return
                   try {
                     const r = await printViaBluetooth(buildReceiptText(detail.id))
-                    if (r==='printed') return
-                    await printReceipt(detail.id)
-                  } catch { try { await printReceipt(detail!.id) } catch {} }
+                    if (r==='printed') { Alert.alert('Sukses','Struk tercetak ✓'); return }
+                    Alert.alert('Gagal', 'Native balikan: '+String(r))
+                  } catch (e:any) { Alert.alert('Gagal mencetak', e?.message||String(e)) }
                 }} style={{ flex:1 }}>Cetak Struk</Button>
               ) : (
                 <Button mode="outlined" icon="bluetooth" onPress={async () => {
-                  if (!detail) return
                   Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
                     { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
                     { text: 'Batal', style: 'cancel' },

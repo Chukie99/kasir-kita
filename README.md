@@ -1,24 +1,34 @@
 # Kasir Kita — Kasir Offline untuk Warung, Kedai & Kafe
 
-**v1.0.9 (build 9)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
+**v1.1.15 (build 25)** · **Android** · **Expo 57 + React Native 0.86 + TypeScript strict** · **100% offline** (SQLite di HP, tanpa server/internet)
 
 ![Expo](https://img.shields.io/badge/Expo-57-black) ![RN](https://img.shields.io/badge/React_Native-0.86-blue) ![TS](https://img.shields.io/badge/TypeScript-strict-blue) ![Offline](https://img.shields.io/badge/Offline-100%25-success) ![License](https://img.shields.io/badge/License-MIT-green)
 
 **Harga Lynk.id: 49k early-bird → 99–149k lifetime (sekali bayar, tanpa langganan bulanan).**
 
-> **Kenapa beda dari Moka/Olsera/Pawoon (299k/bln/outlet)?** Data di HP sendiri, APK 77M ringan, jalan di Android 10, 9 kertas thermal/label 57/80/50mm + Kasbon + Shift, logo PNG, tanpa watermark/batas produk.
+> **Kenapa beda dari Moka/Olsera/Pawoon (299k/bln/outlet)?** Data di HP sendiri, APK 78M ringan, jalan di Android 10, Bluetooth Classic SPP thermal 58/80mm + 9 ukuran kertas + Kasbon + Shift, logo PNG, tanpa watermark/batas produk.
 
 ---
 
-## ✨ Fitur v1.0.9
+## ✨ Fitur v1.1.15
 
 ### 🛒 Kasir — 1-Tap Jual (ala Kasir Pintar & Loyverse)
 - Grid produk **foto 96px** 2-kolom (3-kolom di tablet), nama & harga besar — **tap = +1** tanpa modal
 - **Search sticky** di atas (tidak ikut scroll) + **kategori chip swipe horizontal** (Semua/Minuman/Makanan/Snack/Favorit)
 - Badge stok: `Habis` merah, `Sisa 2` kuning, `Stok 24` muted — stok habis tidak bisa tap
 - **Varian / Topping / Modifier**: Surabi (+Telor +3k), Mie Tek-Tek (Pedas Lv), Teh (Es/Panas)
-- **FAB Scan Barcode** (kamera) + **StickyCartBar pill navy** `bottom:84` — total + **Bayar** selalu visible, tidak ketutup
-- Checkout: Tunai/QRIS/BON, diskon Rp/% , hitung kembalian, tombol nominal cepat, Atas Nama, Bon (DP + jatuh tempo), cetak/bagikan struk
+- **FAB Scan Barcode** (kamera) + **StickyCartBar pill navy** `bottom:84` — total + **Bayar** selalu visible
+- Checkout: Tunai/QRIS/BON, diskon Rp/% , hitung kembalian, tombol nominal cepat, Atas Nama, Bon (DP + jatuh tempo), **Cetak Struk Bluetooth** / PDF / Share
+
+### 🖨️ Cetak Bluetooth — Classic SPP (DantSu ESC/POS)
+- **Native `DantsuPrinter` (DantSu 3.3.0 JitPack)** — Bluetooth Classic SPP, bukan BLE
+- **Connection lifecycle aman**: `PRINT_LOCK` + `isPrinting` flag + `reqId [Rxxx]` — anti 2 koneksi simultan, `250ms flush` sebelum `disconnectPrinter()`, bisa **print berulang tanpa restart** (Test Print → Transaksi → Transaksi lagi → Test lagi sukses)
+- **Diagnosa** di Pengaturan: `Module ADA/TIDAK`, `Bluetooth ON/OFF`, `Printer tersimpan 66:xx`, `pairedCount`
+- **Scan 12s**: list **Paired (tersimpan)** + **Nearby (belum paired)** via `BroadcastReceiver ACTION_FOUND` + `BLUETOOTH_SCAN neverForLocation`
+- **Test Print** struk real (`TEST PRINT — KASIR KITA`) sebelum jualan — bukti MAC + ESC/POS + kertas bekerja
+- **Cetak Struk transaksi**: `printTextWithSettings(addr, text, paperSize, logoPath, reqId)` — logo PNG via `BitmapFactory` → `bitmapToHexadecimalString`
+- **Error jujur tanpa fallback PDF otomatis**: `CONN` / `PRINT_FAIL` / `BUSY [id=Rxxx]` tampil di banner + tombol `Coba Lagi` / `Cetak PDF` manual
+- **Log unik per print**: `DantsuPrinter[Rxxx]: PRINT_REQUEST → CONNECT_START → CONNECT_SUCCESS → PRINT_START → PRINT_SUCCESS → DISCONNECT_SUCCESS`
 
 ### 📦 Kelola Produk & Menu
 - Tambah/edit produk: nama, harga, stok, **foto galeri (crop 1:1)**, kategori, `is_active`
@@ -27,8 +37,8 @@
 
 ### 📊 Laporan & Riwayat — Reprint Struk
 - Tabs **Hari Ini / Minggu Ini / Bulan Ini**, cards Transaksi/Omzet/Tunai/QRIS, banner diskon, **Top-5 Terlaris**
-- Tiap transaksi: invoice, items, jam • metode, total + BON badge `sisa Rp` + **Cetak Ulang / PDF / Share WA / Bayar Bon / Tagih WA** + Void
-- **Export CSV periode** (baru v1.1.1): chip Hari ini/7 Hari/Bulan ini/Custom + kalender tap 📅 (JS, anti-FC) + input Dari–Sampai → CSV (buka langsung di Excel) — Ringkasan + Detail (exclude void)
+- Tiap transaksi: invoice, items, jam • metode, total + BON badge `sisa Rp` + **Cetak Ulang Bluetooth / PDF / Share WA / Bayar Bon / Tagih WA** + Void
+- **Export CSV periode** (v1.1.1+): chip Hari ini/7 Hari/Bulan ini/Custom + kalender tap 📅 (JS, anti-FC) + input Dari–Sampai → CSV (buka langsung di Excel)
 
 ### 💳 Kasbon / Bon Pelanggan — Warung Banget
 - Di Kasir centang **Bon / Kasbon** (Atas Nama wajib + DP + Jatuh Tempo opsional) — bisa `paid < total`, sisa = `total - bon_paid`
@@ -40,39 +50,30 @@
 - **Buka Shift** (modal awal) → jualan → **Tutup Shift** (kas fisik) — tahu selisih laci
 - **Kas Masuk / Keluar** per shift (setoran, belanja)
 - Ringkasan shift: `Tunai (non-bon) / QRIS / VOID / Bon sisa global` + riwayat 10 shift
-- Tombol **Cetak Bluetooth** di Kasir sukses & Riwayat detail — pair dulu di Settings HP, fallback ke PDF/share kalau belum paired (`escPosReceipt` stub, next `react-native-ble-plx`)
 
-### ⚙️ Pengaturan — Laporan & Ekspor + Backup
-- **Laporan & Ekspor CSV** (baru v1.1.1): chip Hari ini/7 Hari/Bulan ini/Custom + kalender JS 📅 tap → **Export CSV Periode** (Ringkasan: transaksi/omzet/cash/qris/piutang + Detail per item) → share WA/Drive, file `laporan-kasir-kita-YYYY-MM-DD-YYYY-MM-DD.csv` — buka langsung di Excel, tanpa `xlsx` biar anti-FC
-- **Nama toko** (muncul di header & struk) + **Logo struk PNG** (upload galeri → `pos_images/store_logo.png` → tampil di struk thermal/PDF)
-- **Ukuran kertas struk** (9 opsi, `pdf-lib` biar PDF pas tidak A4 melar):
-  - `LABEL CONTINUOUS WITH CORE`: `57×30`, `80×30`
-  - `PAPER THERMAL CORE`: `50×50`, `80×40`, `80×50`, `80×80`
-  - `PAPER THERMAL CORELESS`: `57×30`, `57×40`
-  - `LAINNYA`: `A4` — pilih di Pengaturan → chip per group, simpan `paperSize`
-- **Tema** terang/gelap (pastel #F5EFE6 #AEBDCA #7895B2 #0F2440 + Inter) + **Backup .sql / Restore** + **lastBackupAt** indicator
-- Beli/Perpanjang Lisensi (link Lynk.id/WA)
+### ⚙️ Pengaturan — Bluetooth + Laporan & Ekspor + Backup
+- **Printer Bluetooth**: Scan 12s → Paired/Nearby → Simpan → **Test Print** → Hapus Printer + Diagnosa Module
+- **Laporan & Ekspor CSV**: chip Hari ini/7 Hari/Bulan ini/Custom + kalender JS 📅 → **Export CSV Periode** → share WA/Drive
+- **Nama toko** + **Logo struk PNG** (upload galeri → tampil di struk thermal/PDF)
+- **Ukuran kertas struk** (58mm/80mm thermal + A6/custom via `PaperPickerModal` + `settings.ts getPaperDims()`)
+- **Tema** terang/gelap (pastel #F5EFE6 #AEBDCA #7895B2 #0F2440 + Inter) + **Backup .sql / Restore** (14 tabel)
 
 ### 🔐 Lisensi Offline Anti-Bajakan
 - Tiap HP punya **Device ID** `XXXX-XXXX-XXXX-XXXX` di layar aktivasi
-- Token `base64(LICENSE|DEVICE|sig)` verify **Ed25519 `tweetnacl`** offline — anti decompile resell (bukan HMAC)
-- Buyer checkout Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** instant (tanpa tunggu email, 1 license = 1 device, `DEVICE_MISMATCH 403` jika beda HP)
-- SOP ganti HP: WA Device ID baru — **1× reset gratis** (tulis di deskripsi Lynk biar gak ribut)
-- Legacy `keygen.mjs` HMAC masih ada untuk owner-only.
+- Token `base64(LICENSE|DEVICE|sig)` verify **Ed25519 `tweetnacl`** offline — anti decompile resell
+- Buyer checkout Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** instant (1 license = 1 device, `DEVICE_MISMATCH 403` jika beda HP)
+- SOP ganti HP: WA Device ID baru — **1× reset gratis**
 
 ### 🎨 UI/UX
-- **Pastel ColorHunt** #F5EFE6 (bg) #E8DFCA (chip) #AEBDCA (border) #7895B2 (action) #0F2440 (navy) — lembut di mata kasir seharian
-- **Siluet outline thin stroke** bottom nav: `storefront-outline` / `cube-outline` / `chart-bar` / `dots-horizontal` (bukan filled, premium minimalis)
-- **Fixed bottom nav** `position: absolute bottom:20` — **tidak ikut scroll**, konten `paddingBottom:110+` biar tidak ketutup (fix v1.4.1)
-- **Splash screen** navy #0F2440 + loading `Kasir Kita — Memuat kasir...` via `expo-splash-screen`
+- **Pastel ColorHunt** #F5EFE6 (bg) #E8DFCA (chip) #AEBDCA (border) #7895B2 (action) #0F2440 (navy) + Inter
+- **Siluet outline thin stroke** bottom nav + **Fixed bottom nav** `bottom:20` — konten `paddingBottom:110+`
+- **Splash screen** navy #0F2440 + loading `Kasir Kita — Memuat kasir...`
 
 ---
 
 ## 📸 Screenshot
 
-Mockup 5 layar ada di [`KASIR_KITA_Mockup_v1.5.html`](KASIR_KITA_Mockup_v1.5.html) (Kasir 1-tap + Produk Favorit + Laporan Reprint + Lainnya Backup + Scan Barcode) — buka di browser, coba tap/search/kategori/scan.
-
-> Untuk Lynk.id: screenshot dari HP + mockup ini.
+Mockup 5 layar ada di [`KASIR_KITA_Mockup_v1.5.html`](KASIR_KITA_Mockup_v1.5.html) + Panduan lengkap `docs/Panduan-Kasir-Kita-v1.1.10-Lengkap.pdf` (11 Bab)
 
 ---
 
@@ -86,104 +87,98 @@ npx expo start          # scan QR pakai Expo Go (SDK 57)
 ## 📦 Build APK
 
 ```bash
+# GitHub Actions (utama — tanpa EAS quota, PC kentang aman)
+git push origin fix/bluetooth-v1.1.10-2
+git tag v1.1.15 && git push origin v1.1.15
+# → Actions `build-apk.yml` → BUILD SUCCESSFUL → Releases `kasir-kita-v1.1.15.apk` (78-80M)
+
+# Lokal (opsional, butuh Android SDK)
 npm install -g eas-cli
-eas login
-eas build -p android --profile preview   # → .apk (74M, internal)
-eas build -p android --profile production # → .aab (Play Store)
+eas build -p android --profile preview   # → .apk
 ```
 
-`eas.json`:
 | Profil | Output | Pakai |
 |---|---|---|
-| `preview` | `.apk` | Kirim via WA/Lynk.id langsung |
-| `production` | `.aab` | Upload Google Play |
+| `GH Actions` | `.apk` 78M | Kirim via WA/Lynk.id langsung |
+| `preview` (EAS) | `.apk` | Alternatif |
+| `production` (EAS) | `.aab` | Upload Google Play |
 
-APK history: `apk/kasir-kita-v1.1.1.apk` 77M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
+APK history: `apk/kasir-kita-v1.1.15.apk` 80.9M — lihat [Releases](https://github.com/Chukie99/kasir-kita/releases)
 
 ## 🔐 Aktivasi — Ed25519 1 license = 1 device (Opsi A via Email)
-Buyer checkout di Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** (instant, tanpa tunggu email). Token `base64(LICENSE|DEVICE|sig)` verify `tweetnacl` offline. `DEVICE_MISMATCH 403` jika beda HP.
-
-## 🔑 Key Generator (legacy HMAC, untuk penjual)
-
-Pembeli kirim **Device ID** dari layar aktivasi → generate:
-
-```bash
-node keygen.mjs A7F3-91K2-Q8M4-X1Y2
-# → XXXX-XXXX-XXXX-XXXX (kirim balik via WA)
-```
-
-Atau double-click `keygen-helper.html` → paste ID → Generate.
+Buyer checkout di Lynk.id → webhook Supabase isi `licenses` → di APK **Ambil via Email → CARI → AKTIFKAN** (instant, tanpa tunggu email). Token `base64(LICENSE|DEVICE|sig)` verify `tweetnacl` offline.
 
 ## 🗂️ Struktur
 
 ```
 src/
-├── db/database.ts              # SQLite schema + seed demo + migration barcode/favorite
-├── license/license.ts          # deviceId (osInternalBuildId), HMAC, activate/isActivated
+├── db/database.ts              # SQLite schema + seed + migration (14 tabel)
+├── license/license.ts          # deviceId, Ed25519 verify, activate
 ├── screens/
 │   ├── ActivationGate.tsx      # kunci lisensi + input kode
-│   ├── CashierScreen.tsx       # search sticky + kategori swipe + grid + FAB scan + StickyCartBar
-│   ├── ManageProductsScreen.tsx# foto galeri + kategori + Favorit + low-stock
-│   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint/Bagikan per transaksi + BON badge + Bayar/Tagih WA
-│   ├── KasbonScreen.tsx        # bon list + Bayar + Tagih WA
-│   ├── ShiftScreen.tsx         # Buka/Tutup Shift + Kas Masuk/Keluar + audit
-│   └── SettingsScreen.tsx      # CSV periode + kalender JS 📅 + logo PNG + 9 ukuran + backup/restore
+│   ├── CashierScreen.tsx       # grid + search + FAB scan + CheckoutSheet + Cetak Bluetooth
+│   ├── ManageProductsScreen.tsx
+│   ├── HistoryScreen.tsx       # H/M/B + Top-5 + Reprint Bluetooth/Bagikan + BON
+│   ├── KasbonScreen.tsx
+│   ├── ShiftScreen.tsx
+│   └── SettingsScreen.tsx      # Scan 12s + Paired/Nearby + Test Print + Diagnosa + CSV
 ├── components/
-│   ├── FloatingBottomBar.tsx   # 6 tab Kasir/Produk/Laporan/Kasbon/Shift/Lainnya
-│   ├── StickyCartBar.tsx       # pill navy bottom:84
-│   ├── ModifierSheet.tsx       # varian/topping
-│   └── CheckoutSheet.tsx       # bayar + kembalian
-├── theme/theme.ts              # Pastel MD3 + Inter
+│   ├── FloatingBottomBar.tsx
+│   ├── StickyCartBar.tsx
+│   ├── PaperPickerModal.tsx    # 58/80/A6/custom
+│   ├── DatePickerModal.tsx
+│   └── CheckoutSheet.tsx
+├── theme/theme.ts              # Pastel MD3 + Inter + getPaperTheme()
 └── utils/
-    ├── pos.ts                  # cartTotals, checkout + void + BON (is_bon/bon_paid/due), customer_name
-    ├── products.ts             # CRUD produk/kategori, stock, favorite
-    ├── receipt.ts              # buildReceiptText/Html 9 ukuran + BON Sisa + logo, pdf-lib MediaBox exact per mm, print/share PDF
-    ├── kasbon.ts                 # payBon, listKasbon, kasbonSummary
-    ├── shifts.ts                 # openShift/closeShift/shiftSummary/cashMovements
-    ├── bluetooth.ts              # escPosReceipt + printViaBluetoothFallback (stub → PDF fallback)
-    ├── backup.ts               # createBackup/restoreFromSql (SDK57 File/Directory/Paths)
-    ├── export.ts               # exportDailyReport CSV + PDF
-    └── settings.ts             # getSetting + PAPER_OPTIONS 9 ukuran + PaperSize + getPaperDims/normalize
-assets/  icon.png, splash-icon.png, android-icon-*.png
-keygen.mjs / keygen-helper.html  # owner-only, jangan publish secret baru
+    ├── pos.ts
+    ├── products.ts
+    ├── receipt.ts              # buildReceiptText/Html 9 ukuran + logo, pdf-lib exact per mm
+    ├── kasbon.ts
+    ├── shifts.ts
+    ├── bluetooth.ts            # discoverPrinters + printViaBluetooth (DantSu) + getNativePrinterStatus
+    ├── backup.ts               # 14 tabel
+    └── settings.ts             # PAPER_OPTIONS + PaperSize + getPaperDims
+expo-plugins/with-dantsu.js    # withAndroidManifest + MainApplication.kt add(DantsuPrinterPackage()) + DantsuPrinterModule.java
+scripts/validate-dantsu.js     # GREEN check sebelum push
+assets/  icon.png, splash-icon.png
 ```
 
 ## 🧾 Struk — Thermal vs PDF
 
-- **58mm** = 48mm content, 11px monospace — printer bluetooth mini (paling umum, 2–3 inch)
-- **80mm** = 72mm — thermal lebar lebih lega
+- **58mm** = 48mm content, 11px monospace — printer bluetooth mini (paling umum)
+- **80mm** = 72mm — thermal lebar
 - **A4** = 170mm, 12px — PDF/email, header “Struk Penjualan — dicetak dari Kasir Kita” + logo 120px
-- Ganti di **Pengaturan → Ukuran Kertas Struk** → `buildReceiptHtml(txId, size)` auto ganti `@page` + `width` + `font` + `logo size`. Ada badge `Pratinjau: 58mm — pilih 58mm untuk thermal`.
-
-Logo: upload PNG transparan 512×512 ideal → tampil `<img max-width 80px thermal / 120px A4>` di atas struk.
+- Ganti di **Pengaturan → Ukuran Kertas Struk** → `buildReceiptHtml(txId, size)` auto ganti `@page` + `width` + `font`
+- **Bluetooth**: `printTextWithSettings` kirim ESC/POS via SPP + `cutPaper` via `printFormattedTextAndCut`
 
 ## 🔧 Tech Notes
 
-- **SDK 57 breaking**: `expo-file-system` ganti `FileSystem.Paths` → `File/Directory/Paths` + `cacheDirectory/documentDirectory` — sudah di-fix di `backup.ts`/`export.ts`/`ManageProductsScreen.tsx`
-- **Stok**: `pos.ts` validasi sebelum `BEGIN` + `UPDATE ... WHERE stock>=qty` biar tidak -50
-- **Delete produk**: `SELECT COUNT(*) FROM transaction_items WHERE product_name = ?` (bukan JOIN ngaco) — jika pernah terjual → soft-hide `is_active=0`
+- **SDK 57 breaking**: `expo-file-system` ganti `File/Directory/Paths` — sudah fix di `backup.ts`/`export.ts`
+- **Stok**: `pos.ts` validasi sebelum `BEGIN` + `UPDATE ... WHERE stock>=qty`
+- **Bluetooth**: `expo-plugins/with-dantsu.js` inject `android/app/src/main/java/com/chukie99/posumkm/DantsuPrinterModule.java` (JitPack `com.github.dantsu:escpos-thermalprinter-android:3.3.0`) — **wajib `validate-dantsu GREEN` + `tsc 0` sebelum push**. `BLUETOOTH_SCAN neverForLocation` + `BLUETOOTH_CONNECT` di manifest.
+- **Lifecycle**: `PRINT_LOCK synchronized` + `Thread.sleep(250)` drain + `reqId` log — jangan hapus, ini yang bikin print berulang tanpa restart bisa
 
 ## 📋 Changelog
 
-- **v1.0.9 (9)** — Kasbon/BON + Shift/Tutup Kasir + Kas Masuk/Keluar + Cetak Bluetooth (stub) + 6-tab nav + BON di struk (layak jual 99k)
-- **v1.0.8 (8)** — 9 ukuran kertas 57×30..80×80+A4 (chip group), PDF `pdf-lib mmToPt` exact per ukuran, GH Actions build (no EAS quota)
-- **v1.0.7 (7)** — PDF thermal `pdf-lib` MediaBox 164pt (fix expo-print A4 595)
-- **v1.0.6 (6)** — `width/height` expo-print attempt (masih A4, di-fix 1.0.7)
-- **v1.0.5 (5)** — `@page 58mm auto` attempt
-- **v1.0.4 (4)** — History detail + cetak ulang + void soft + atas nama + search
-- **v1.0.3 (3)** — Opsi A via Email (get-license instant)
-- **v1.0.2 (2)** — Ed25519 1=1 device
-- **v1.0.1 (10)** — Fix ikon kotak-kotak (outline valid), splash loading navy, logo PNG di struk, pilih kertas 58/80/A4
-- **v1.4.2 (9)** — Siluet thin stroke 1.6px, fixed bottom nav tidak ikut scroll
-- **v1.4.1 (8)** — Anti-overlap: `paddingBottom 110+` semua screen, `StickyCartBar bottom:84`, TSC 0
-- **v1.4.0 (7)** — Pastel #7895B2 + Inter, P0 stok/FS/delete/kategori/crash-log
-- **v1.3.2** — Force close, image upload, checkout, dark theme, floating nav
-- Roadmap v1.5: Reprint di Riwayat (done mockup), scan barcode camera, Favorit pin, piutang + Tagih WA, auto-backup Drive
+- **v1.1.15 (25)** — **CONNECTION LIFECYCLE fix**: `PRINT_LOCK` + `isPrinting` anti double connect, `reqId [Rxxx]` log `CONNECT/PRINT/DISCONNECT`, `250ms flush` sebelum disconnect, `_isPrinting` guard di JS, error jujur `CONN/PRINT_FAIL/BUSY` + `Coba Lagi/Cetak PDF` manual — **Test Print → Transaksi → Transaksi lagi → Test lagi tanpa restart sukses** (fix `EscPosConnectionException` dead catch yang bikin build fail)
+- **v1.1.14 (24)** — **NATIVE REGISTRATION fix**: `MainApplication.kt` Kotlin `add(DantsuPrinterPackage())` — `NativeModules.DantsuPrinter` jadi ADA, **Test Print pertama kali BERHASIL keluar kertas** (proof SPP + MAC + ESC/POS)
+- **v1.1.13 (23)** — **PRINT_EXECUTION strict**: no swallow, reject on fail, Diagnosa Module + Test Print real
+- **v1.1.12 (22)** — Bluetooth Classic SPP discovery 12s + paired/nearby + `BLUETOOTH_SCAN neverForLocation`
+- **v1.1.11 (21)** — Fix modal bayar gak ilang (remount `key=kasir-refreshKey-themeTick`)
+- **v1.1.10 (20)** — Fix `refreshKey` + `paperTheme` + backup 14 tabel + `COLLATE NOCASE`
+- **v1.1.9 (19)** — Fix print fallback + dark mode + void stok + tab Hari Ini putih
+- **v1.1.8 (18)** — ActivationGate filter `ACTIVE/READY`
+- **v1.1.7 (17)** — PaperPicker A6/custom 58x200/80x200
+- **v1.1.1 (11)** — Export CSV periode + kalender JS
+- **v1.1.0 (10)** — Baseline stabil
+- **v1.0.9 (9)** — Kasbon/BON + Shift + Cetak Bluetooth stub
 
 ## 📄 Dokumen
 
-- `PRD_KASIR_KITA_v1.5.md` + `KASIR_KITA_Mockup_v1.5.html` — PRD & mockup easy-use 5 layar
-- `Riset_Saingan_KASIR_KITA.xlsx/.pdf` — 14 saingan (CocoPOS, Kasir Pintar, Moka 299k/bln, Olsera dll) + strategi Lynk.id 49k→149k
+- `docs/Panduan-Kasir-Kita-v1.1.10-Lengkap.pdf` — 11 Bab A4 navy/teal
+- `docs/Lynk-Listing-v1.1.10.txt` + `Lynk-Cover-1080.jpg` — listing Lynk.id
+- `PRD_KASIR_KITA_v1.5.md` + `KASIR_KITA_Mockup_v1.5.html`
+- `Riset_Saingan_KASIR_KITA.xlsx` — 14 saingan + strategi 49k→149k
 
 ## 📜 Lisensi
 

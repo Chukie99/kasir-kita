@@ -12,6 +12,8 @@ import { shareReceipt } from '../utils/export'
 
 export default function CashierScreen({ onSold, tick }: { onSold: () => void; tick?: number }) {
   const [refreshKey, setRefreshKey] = useState(0)
+  const [printErr, setPrintErr] = useState<string | null>(null)
+  const [printing, setPrinting] = useState(false)
   const products = useMemo(() => listProducts(), [refreshKey, tick])
   const categories = useMemo(() => listCategories(), [refreshKey, tick])
   const [activeCat, setActiveCat] = useState<number | null>(null)
@@ -57,7 +59,6 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
       const res = checkout(cart, method, paid, discount, customerName, opts)
       const db = require('../db/database').getDb()
       const row = db.getFirstSync('SELECT id FROM transactions ORDER BY id DESC LIMIT 1') as { id: number } | undefined
-      // setSuccess DULU sebelum onSold/clear — biar modal gak ke-unmount (fix: key remount bug v1.1.10)
       setSuccess({ invoice: res.invoice, change: res.change, method, txId: row?.id ?? null })
       setCart([])
       setShowCheckout(false)
@@ -156,7 +157,7 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
       />
 
       {/* Success modal — gede jelas, gak ketutup */}
-      <Modal visible={!!success} onDismiss={() => setSuccess(null)} contentContainerStyle={styles.successModal}>
+      <Modal visible={!!success} onDismiss={() => { setSuccess(null); setPrintErr(null) }} contentContainerStyle={styles.successModal}>
         <Text style={styles.successIcon}>✓</Text>
         <Text style={styles.successTitle}>Pembayaran Berhasil</Text>
         <Text style={styles.successInvoice}>{success?.invoice}</Text>
@@ -171,24 +172,38 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
             <Text style={styles.successChangeValue}>QRIS Lunas ✓</Text>
           </View>
         )}
+        {printErr ? (
+          <View style={{ backgroundColor: '#FDECEA', borderWidth: 1, borderColor: '#E57373', borderRadius: 10, padding: 10, marginTop: 12, width: '100%' }}>
+            <Text style={{ color: '#C62828', fontSize: 12, fontWeight: '700' }}>Gagal mencetak ke printer:</Text>
+            <Text style={{ color: '#C62828', fontSize: 11, marginTop: 4 }}>{printErr}</Text>
+          </View>
+        ) : null}
         <View style={styles.successBtnRow}>
           {getSavedPrinter() ? (
-            <Button mode="contained" icon="printer" onPress={async () => {
-              if (!success?.txId) return
-              const txt = buildReceiptText(success.txId)
-              try {
-                const r = await printViaBluetooth(txt)
-                if (r === 'printed') return
-                await printReceipt(success.txId)
-              } catch { try { await printReceipt(success!.txId!) } catch {} }
-            }} style={{ flex: 1 }}>
-              Cetak Struk
-            </Button>
+            <>
+              <Button mode="contained" icon="printer" loading={printing} disabled={printing} onPress={async () => {
+                if (!success?.txId) return
+                setPrintErr(null); setPrinting(true)
+                const txt = buildReceiptText(success.txId)
+                try {
+                  const r = await printViaBluetooth(txt)
+                  if (r === 'printed') { setPrintErr(null); setPrinting(false); return }
+                  // r === 'shared' or other should be treated as error, not fallback
+                  setPrintErr(`Native mengembalikan "${r}" — bukan printed. Coba lagi atau cek kertas/Bluetooth.`)
+                } catch (e:any) {
+                  const msg = e?.message || String(e)
+                  setPrintErr(msg)
+                } finally { setPrinting(false) }
+              }} style={{ flex: 1 }}>
+                {printing ? 'Mencetak...' : 'Cetak Struk'}
+              </Button>
+              <Button mode="outlined" icon="file-pdf-box" disabled={printing} onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch (e:any) { setPrintErr(e?.message||String(e)) } }} style={{ flex: 1 }}>
+                Cetak PDF
+              </Button>
+            </>
           ) : (
             <>
               <Button mode="outlined" icon="bluetooth" onPress={async () => {
-                if (!success?.txId) return
-                const txt = buildReceiptText(success.txId)
                 const { Alert } = await import('react-native')
                 Alert.alert('Printer belum dipilih', 'Pair dulu di Bluetooth HP lalu pilih di Pengaturan > Printer Bluetooth', [
                   { text: 'Buka Bluetooth HP', onPress: () => openSystemBluetoothSettings() },
@@ -198,8 +213,8 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
               }} style={{ flex: 1 }}>
                 Bluetooth
               </Button>
-              <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch {} }} style={{ flex: 1 }}>
-                Cetak
+              <Button mode="outlined" icon="printer" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch (e:any) { setPrintErr(e?.message||String(e)) } }} style={{ flex: 1 }}>
+                Cetak PDF
               </Button>
             </>
           )}
@@ -207,7 +222,22 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
             Kirim WA
           </Button>
         </View>
-        <Button mode="text" onPress={() => setSuccess(null)} textColor={colors.textMuted} style={{ marginTop: 8 }}>
+        {printErr && getSavedPrinter() ? (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, width: '100%' }}>
+            <Button mode="contained" icon="refresh" onPress={async () => {
+              if (!success?.txId) return
+              setPrintErr(null); setPrinting(true)
+              const txt = buildReceiptText(success.txId)
+              try {
+                const r = await printViaBluetooth(txt)
+                if (r === 'printed') setPrintErr(null)
+                else setPrintErr(`Coba lagi gagal: ${r}`)
+              } catch (e:any) { setPrintErr(e?.message||String(e)) } finally { setPrinting(false) }
+            }} style={{ flex: 1 }}>Coba Lagi</Button>
+            <Button mode="outlined" icon="file-pdf-box" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch (e:any) { setPrintErr(e?.message||String(e)) } }}>Cetak PDF</Button>
+          </View>
+        ) : null}
+        <Button mode="text" onPress={() => { setSuccess(null); setPrintErr(null) }} textColor={colors.textMuted} style={{ marginTop: 8 }}>
           Tutup — Lanjut Jualan
         </Button>
       </Modal>

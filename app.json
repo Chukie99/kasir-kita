@@ -2,13 +2,13 @@
   "expo": {
     "name": "Kasir Kita",
     "slug": "pos-umkm-android",
-    "version": "1.1.11",
+    "version": "1.1.15",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "android": {
       "package": "com.chukie99.posumkm",
-      "versionCode": 21,
+      "versionCode": 25,
       "adaptiveIcon": {
         "backgroundColor": "#7895B2",
         "foregroundImage": "./assets/android-icon-foreground.png"
