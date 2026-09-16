@@ -7,7 +7,7 @@ import { exportPeriodCsv, rangeToday, range7Days, rangeThisMonth, type ExportRan
 import DatePickerModal from '../components/DatePickerModal'
 import { createBackup, restoreFromSql } from '../utils/backup'
 import { getSetting, setSetting, getPaperSize, getPaperLabel, type PaperSize } from '../utils/settings'
-import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, discoverPrinters, openSystemBluetoothSettings, ensureBluetoothOn, getNativePrinterStatus, printViaBluetooth, type BtDevice } from '../utils/bluetooth'
+import { getSavedPrinter, savePrinter, getSavedPrinterName, savePrinterName, listPairedPrinters, discoverPrinters, openSystemBluetoothSettings, ensureBluetoothOn, getNativePrinterStatus, printViaBluetooth, printViaBluetoothNoLogo, type BtDevice } from '../utils/bluetooth'
 import PaperPickerModal from '../components/PaperPickerModal'
 
 interface Props {
@@ -273,19 +273,20 @@ export default function SettingsScreen({ dark, onToggleTheme }: Props) {
             <Button mode="contained" icon="printer-check" onPress={async()=>{
               try{
                 showStatus('Test Print ke '+(btName||btAddr)+' via Bluetooth...', false)
-                // TEST PRINT real — tidak pakai share/PDF, harus via Bluetooth native
-                const txt = 'TEST PRINT \u2014 KASIR KITA\n'
-                  + 'Printer: '+(btName||btAddr)+'\n'
-                  + 'Waktu: '+new Date().toLocaleString('id-ID')+'\n'
-                  + '-'.repeat(32)+'\n'
-                  + 'Jika baris ini tercetak, printer SIAP.\n'
-                  + 'KASIR KITA — Cetak thermal Bluetooth Classic\n'
-                  + 'Line 1/3  |  Line 2/3  |  Line 3/3\n'
-                  + '-'.repeat(32)+'\n'
-                const r = await printViaBluetooth(txt)
-                if(r==='printed') showStatus('\u2713 TEST PRINT BERHASIL — printer mencetak!', false)
+                const txt = 'TEST PRINT - KASIR KITA\n' +
+                  'Printer: '+(btName||btAddr)+'\n' +
+                  'Waktu: '+new Date().toLocaleString('id-ID')+'\n' +
+                  '-'.repeat(32)+'\n' +
+                  'Jika baris ini tercetak, printer SIAP.\n'
+                console.log(`[DIAG] TestPrint NO_LOGO txtLen=${txt.length}`)
+                const r = await printViaBluetoothNoLogo(txt)
+                if(r==='printed') showStatus('✓ TEST PRINT BERHASIL — printer mencetak!', false)
                 else showStatus('Gagal Test Print: native balikan "'+String(r)+'". Cek kertas & Pair.', true)
-              }catch(e:any){ showStatus('Gagal mencetak ke printer: '+(e?.message||String(e)), true) }
+              }catch(e:any){
+                const msg = e?.message||String(e)
+                console.log(`[DIAG] TestPrint ERROR ${msg.slice(0,400)}`)
+                showStatus('Gagal mencetak ke printer: '+msg, true)
+              }
             }} compact>Test Print</Button>
             <Button mode="outlined" icon="stethoscope" onPress={async()=>{
               try{
