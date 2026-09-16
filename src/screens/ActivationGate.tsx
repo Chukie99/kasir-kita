@@ -2,7 +2,7 @@ import React from 'react'
 import { View, StyleSheet, TextInput, Pressable, Linking, ActivityIndicator, ScrollView } from 'react-native'
 import { Text, Surface } from 'react-native-paper'
 import { colors } from '../theme/theme'
-import { VENDOR_WA, activateOnline, fetchLicenseByEmail } from '../license/license'
+import { VENDOR_WA, activateOnline, fetchLicenseByEmail, activateManual } from '../license/license'
 import * as Clipboard from 'expo-clipboard'
 
 export default function ActivationGate({ deviceCode, onActivate }: { deviceCode: string; onActivate: (token: string) => boolean }) {
@@ -19,7 +19,24 @@ export default function ActivationGate({ deviceCode, onActivate }: { deviceCode:
     const v = (codeOverride || license).trim().toUpperCase()
     if (!v) { setError('Masukkan kode lisensi (KITA-XXXX-XXXX-XXXX)'); return }
     setLoading(true); setError('')
-    const r = await activateOnline(v)
+    // Coba online dulu (Ed25519 Supabase), kalau gagal koneksi/server coba manual HMAC offline
+    let r = await activateOnline(v)
+    const isHmacFormat = /^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(v)
+    const shouldTryManual = !r.ok && (isHmacFormat || (r.error || '').toLowerCase().includes('koneksi') || (r.error || '').toLowerCase().includes('gagal koneksi'))
+    if (shouldTryManual) {
+      const m = await activateManual(v)
+      if (m.ok) {
+        onActivate(v)
+        setLoading(false)
+        return
+      }
+      // kalau format bukan HMAC, jangan timpa error online asli
+      if (isHmacFormat) {
+        setLoading(false)
+        setError(r.error + ' • Manual juga gagal: ' + (m.error || 'kode tidak cocok'))
+        return
+      }
+    }
     setLoading(false)
     if (!r.ok) { setError(r.error || 'Gagal aktivasi'); return }
     if (r.token) onActivate(r.token)

@@ -128,5 +128,36 @@ export async function fetchLicenseByEmail(email: string): Promise<{ ok: boolean;
   } catch (err:any) { return { ok: false, error: err?.message || "Gagal koneksi" } }
 }
 
-// Legacy HMAC helpers kept for reference but not used for new licenses
 export const APP_LICENSE_SECRET = '5E175D6EBE1E6E0FA1F068A59308898E090239DFFC59E2C4'
+// Manual offline fallback — HMAC legacy, used when Supabase down
+// isActivated already allows legacy 19-char codes, so manual codes work offline
+const HMAC_ALPHA = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+function bytesToBase32Custom(bytes: Uint8Array): string {
+  let bigVal = 0n, bigBits = 0n, out = ''
+  for (const b of bytes) { bigVal = (bigVal << 8n) | BigInt(b); bigBits += 8n; while (bigBits >= 5n) { out += HMAC_ALPHA[Number((bigVal >> (bigBits - 5n)) & 31n)]; bigBits -= 5n } }
+  if (bigBits > 0n) out += HMAC_ALPHA[Number((bigVal << (5n - bigBits)) & 31n)]
+  return out.slice(0, 16)
+}
+async function hmacForDevice(deviceId: string): Promise<string> {
+  const normDev = String(deviceId).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12).padEnd(12, 'X')
+  const enc = new TextEncoder()
+  const key = await (globalThis as any).crypto.subtle.importKey('raw', enc.encode(APP_LICENSE_SECRET), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const sig = await (globalThis as any).crypto.subtle.sign('HMAC', key, enc.encode(normDev))
+  const code = bytesToBase32Custom(new Uint8Array(sig as ArrayBuffer))
+  return (code.match(/.{4}/g) || []).join('-')
+}
+// Dipanggil dari ActivationGate kalau Supabase down — verifikasi HMAC lokal lalu store
+export async function activateManual(inputCode: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const dev = getDeviceId()
+    const normInput = String(inputCode).toUpperCase().replace(/[^A-Z0-9]/g, '')
+    if (normInput.length !== 16) return { ok: false, error: 'Format kode manual harus XXXX-XXXX-XXXX-XXXX (16 karakter)' }
+    const expected = await hmacForDevice(dev)
+    const expectedNorm = expected.replace(/-/g, '')
+    if (normInput !== expectedNorm) return { ok: false, error: 'Kode manual tidak cocok untuk Device ID HP ini' }
+    // simpan sebagai legacy token — isActivated() anggap valid
+    storeToken(inputCode.toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/(.{4})/g, '$1-').slice(0, 19), dev)
+    return { ok: true }
+  } catch (e: any) { return { ok: false, error: e?.message || 'Gagal verifikasi manual' } }
+}
+
