@@ -252,6 +252,9 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void printTextWithSettings(String address, String text, String paperSize, String logoPath, Promise p){
+    String jReqId = String.format("R%04X", new java.util.Random().nextInt(0x10000));
+    int textLen = text != null ? text.length() : 0;
+    android.util.Log.d("DantsuPrinter", "["+jReqId+"] CONNECT_START addr="+(address!=null?address:"null")+" paper="+(paperSize!=null?paperSize:"null")+" textLen="+textLen+" logoLen="+(logoPath!=null?logoPath.length():0));
     try{
       BluetoothConnection[] list = new BluetoothPrintersConnections().getList();
       BluetoothConnection target = null;
@@ -260,7 +263,6 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
           try{ if(c.getDevice().getAddress().equalsIgnoreCase(address)){ target=c; break; } }catch(Exception ignore){}
         }
       }
-      // fallback to direct device if not in bonded list (allow discovered-but-not-bonded? will fail but give clear error)
       if(target==null){
         try{
           BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
@@ -273,7 +275,11 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
       if(target==null){
         target = BluetoothPrintersConnections.selectFirstPaired();
       }
-      if(target==null){ p.reject("NO_PRINTER", "Tidak ada printer paired. Pair dulu di Bluetooth HP (PIN 0000/1234) lalu tap Scan lagi"); return; }
+      if(target==null){
+        android.util.Log.e("DantsuPrinter", "["+jReqId+"] CONNECT_ERROR NO_PRINTER paired=0 addr="+(address!=null?address:"null"));
+        p.reject("NO_PRINTER", "["+jReqId+"] Tidak ada printer paired. Pair dulu di Bluetooth HP (PIN 0000/1234) lalu tap Scan lagi");
+        return;
+      }
       float mmWidth = 48f;
       int nbrChars = 32;
       if(paperSize != null){
@@ -305,9 +311,22 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
         else if(ps.contains("58") || ps.contains("57")){ mmWidth = 48f; nbrChars = 32; }
         else if(ps.contains("50")){ mmWidth = 48f; nbrChars = 32; }
       }
-      EscPosPrinter printer = new EscPosPrinter(target.connect(), 203, mmWidth, nbrChars);
+      // CONNECT
+      android.util.Log.d("DantsuPrinter", "["+jReqId+"] CONNECT_START target="+(target!=null?target.getDevice().getAddress():"null")+" mm="+mmWidth+" chars="+nbrChars);
+      com.dantsu.escposprinter.connection.DeviceConnection conn = null;
+      try{
+        conn = target.connect();
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] CONNECT_SUCCESS");
+      }catch(Exception ce){
+        android.util.Log.e("DantsuPrinter", "["+jReqId+"] CONNECT_ERROR "+ce.getClass().getSimpleName()+": "+ce.getMessage(), ce);
+        p.reject("CONN", "["+jReqId+"] CONNECT_ERROR "+ce.getClass().getSimpleName()+": "+ce.getMessage(), ce);
+        return;
+      }
+      EscPosPrinter printer = new EscPosPrinter(conn, 203, mmWidth, nbrChars);
+      // LOGO
       String logoPart = "";
       if(logoPath != null && logoPath.length() > 5){
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] LOGO_START pathLen="+logoPath.length()+" pathHead="+(logoPath.length()>40?logoPath.substring(0,40):logoPath));
         try{
           String path = logoPath.replace("file://", "");
           Bitmap bmp = BitmapFactory.decodeFile(path);
@@ -320,43 +339,58 @@ public class DantsuPrinterModule extends ReactContextBaseJavaModule {
             }
             String hex = PrinterTextParserImg.bitmapToHexadecimalString(printer, bmp);
             logoPart = "[C]<img>" + hex + "</img>\\n";
+            android.util.Log.d("DantsuPrinter", "["+jReqId+"] LOGO_SUCCESS w="+bmp.getWidth()+" h="+bmp.getHeight()+" hexLen="+hex.length());
+          } else {
+            android.util.Log.e("DantsuPrinter", "["+jReqId+"] LOGO_ERROR decodeFile returned null path="+path);
           }
-        }catch(Exception _le){}
+        }catch(Exception le){
+          android.util.Log.e("DantsuPrinter", "["+jReqId+"] LOGO_ERROR "+le.getClass().getSimpleName()+": "+le.getMessage(), le);
+        }
+      } else {
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] LOGO_START skip (no logo) logoPath="+(logoPath==null?"null":"empty"));
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] LOGO_SUCCESS skip");
       }
-      android.util.Log.d("DantsuPrinter", "CONNECT target="+target.getDevice().getAddress()+" PRINT_START mm="+mmWidth+" chars="+nbrChars);
       String formatted = logoPart + "[C]<font size='big'>KASIR KITA</font>\\n" + "[L]\\n" + text + "\\n";
+      android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_START formattedLen="+formatted.length()+" payloadLen="+textLen+" hasLogo="+(logoPart.length()>0));
       boolean printedOk = false;
       Exception lastErr = null;
       try{
-        android.util.Log.d("DantsuPrinter", "PRINT_TRY cut");
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_START try cut");
         printer.printFormattedTextAndCut(formatted);
         printedOk = true;
-        android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS cut");
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_SUCCESS cut");
       } catch(Exception e){
         lastErr = e;
-        android.util.Log.e("DantsuPrinter", "PRINT_ERROR cut: "+e.getMessage(), e);
+        android.util.Log.e("DantsuPrinter", "["+jReqId+"] PRINT_ERROR cut "+e.getClass().getSimpleName()+": "+e.getMessage(), e);
         try{
-          android.util.Log.d("DantsuPrinter", "PRINT_TRY fallback");
+          android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_START fallback [L]");
           printer.printFormattedText("[L]" + text);
           printedOk = true;
-          android.util.Log.d("DantsuPrinter", "PRINT_SUCCESS fallback");
+          android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_SUCCESS fallback");
         } catch(Exception e2){
           lastErr = e2;
-          android.util.Log.e("DantsuPrinter", "PRINT_ERROR fallback: "+e2.getMessage(), e2);
+          android.util.Log.e("DantsuPrinter", "["+jReqId+"] PRINT_ERROR fallback "+e2.getClass().getSimpleName()+": "+e2.getMessage(), e2);
         }
       }
-      try{ printer.disconnectPrinter(); }catch(Exception ignore){}
+      android.util.Log.d("DantsuPrinter", "["+jReqId+"] DISCONNECT_START");
+      try{ printer.disconnectPrinter(); android.util.Log.d("DantsuPrinter", "["+jReqId+"] DISCONNECT_SUCCESS"); }catch(Exception de){ android.util.Log.e("DantsuPrinter", "["+jReqId+"] DISCONNECT_ERROR "+de.getMessage(), de); }
       if(printedOk){
-        android.util.Log.d("DantsuPrinter", "PRINT_DONE resolved printed");
+        android.util.Log.d("DantsuPrinter", "["+jReqId+"] PRINT_SUCCESS resolved printed");
         p.resolve("printed");
       } else {
         String msg = lastErr!=null && lastErr.getMessage()!=null ? lastErr.getMessage() : "unknown";
-        android.util.Log.e("DantsuPrinter", "PRINT_FAIL reject: "+msg);
-        p.reject("PRINT_FAIL", "Gagal print ("+msg+") — cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain", lastErr);
+        String cls = lastErr!=null ? lastErr.getClass().getSimpleName() : "Unknown";
+        android.util.Log.e("DantsuPrinter", "["+jReqId+"] PRINT_ERROR final "+cls+": "+msg);
+        p.reject("PRINT_FAIL", "["+jReqId+"] PRINT_ERROR "+cls+": "+msg+" — cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain", lastErr);
       }
-    }catch(EscPosConnectionException e){
-      p.reject("CONN", e.getMessage(), e);
-    }catch(Exception e){ p.reject("ERR", e.getMessage(), e); }
+    }catch(Exception e){
+      android.util.Log.e("DantsuPrinter", "["+jReqId+"] PRINT_ERROR outer "+e.getClass().getSimpleName()+": "+e.getMessage(), e);
+      if(e instanceof EscPosConnectionException){
+        p.reject("CONN", "["+jReqId+"] CONN "+e.getMessage(), e);
+      } else {
+        p.reject("ERR", "["+jReqId+"] ERR "+e.getClass().getSimpleName()+": "+e.getMessage(), e);
+      }
+    }
   }
 
   @ReactMethod

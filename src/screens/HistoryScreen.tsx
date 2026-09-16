@@ -197,14 +197,31 @@ export default function HistoryScreen() {
             ) : null}
             <View style={{ flexDirection:'row', gap:10, marginTop:6 }}>
               {getSavedPrinter() ? (
+                <>
                 <Button mode="contained" icon="printer" onPress={async () => {
                   if (!detail) return
+                  const txt = buildReceiptText(detail.id)
+                  console.log(`[DIAG] History A WITH_LOGO txId=${detail.id} len=${txt.length}`)
                   try {
-                    const r = await printViaBluetooth(buildReceiptText(detail.id))
+                    const r = await printViaBluetooth(txt)
+                    console.log(`[DIAG] History A result ${r}`)
                     if (r==='printed') return
                     await printReceipt(detail.id)
-                  } catch { try { await printReceipt(detail!.id) } catch {} }
-                }} style={{ flex:1 }}>Cetak Struk</Button>
+                  } catch (e:any) { console.log(`[DIAG] History A ERROR ${String(e?.message||e).slice(0,400)}`); try { await printReceipt(detail!.id) } catch {} }
+                }} style={{ flex:1 }}>Cetak A</Button>
+                <Button mode="contained" icon="printer-outline" buttonColor="#1A495D" onPress={async () => {
+                  if (!detail) return
+                  const txt = buildReceiptText(detail.id)
+                  console.log(`[DIAG] History B NO_LOGO txId=${detail.id} len=${txt.length}`)
+                  try {
+                    const { printViaBluetoothNoLogo } = await import('../utils/bluetooth')
+                    const r = await printViaBluetoothNoLogo(txt)
+                    console.log(`[DIAG] History B result ${r}`)
+                    if (r==='printed') return
+                    await printReceipt(detail.id)
+                  } catch (e:any) { console.log(`[DIAG] History B ERROR ${String(e?.message||e).slice(0,400)}`); try { await printReceipt(detail!.id) } catch {} }
+                }} style={{ flex:1 }}>Cetak B (no logo)</Button>
+                </>
               ) : (
                 <Button mode="outlined" icon="bluetooth" onPress={async () => {
                   if (!detail) return

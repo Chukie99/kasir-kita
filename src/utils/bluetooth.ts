@@ -104,9 +104,16 @@ export async function connectPrinter(address: string): Promise<void> {
   throw new Error('testConnect belum tersedia di build ini — rebuild v1.1.11+')
 }
 
-export async function printViaBluetooth(text: string): Promise<'printed'|'shared'|'no_printer'> {
+function genReqId(): string { return 'R' + Math.random().toString(16).slice(2,6).toUpperCase().padStart(4,'0') }
+
+export async function printViaBluetooth(text: string, opts?: { skipLogo?: boolean }): Promise<'printed'|'shared'|'no_printer'> {
+  const reqId = genReqId()
   const addr = getSavedPrinter()
-  if (!addr) return 'no_printer'
+  console.log(`[BT] [${reqId}] PRINT_REQUEST len=${text.length} addr=${addr || 'null'} skipLogo=${!!opts?.skipLogo}`)
+  if (!addr) {
+    console.log(`[BT] [${reqId}] RESULT no_printer`)
+    return 'no_printer'
+  }
   const perm = await requestBtPermissions()
   if (!perm.ok) throw new Error(perm.msg!)
   const { NativeModules } = await import('react-native')
@@ -119,38 +126,69 @@ export async function printViaBluetooth(text: string): Promise<'printed'|'shared
     const { getPaperSize, getCustomDims, getSetting } = await import('./settings')
     const raw = getPaperSize()
     if (raw === 'custom') { const d = getCustomDims(); paperSizeArg = `custom:${d.wMm}x${d.hMm}` } else paperSizeArg = raw
-    logoPath = getSetting('storeLogoUri','') || null
+    logoPath = opts?.skipLogo ? null : (getSetting('storeLogoUri','') || null)
   } catch {}
+  console.log(`[BT] [${reqId}] ADDRESS ${addr}`)
+  console.log(`[BT] [${reqId}] PAPER_SIZE ${paperSizeArg}`)
+  console.log(`[BT] [${reqId}] PAYLOAD_LENGTH ${text.length}`)
+  console.log(`[BT] [${reqId}] LOGO_PATH ${logoPath ? logoPath.slice(0,60) : 'null (skipLogo='+(!!opts?.skipLogo)+')'}`)
   let lastErr: any = null
   // 1) with logo + settings
   if (logoPath && mod.printTextWithSettings) {
+    console.log(`[BT] [${reqId}] ATTEMPT_1 printTextWithSettings WITH_LOGO paper=${paperSizeArg}`)
     try {
       const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), String(logoPath))
-      if (r === 'printed') return 'printed'
+      console.log(`[BT] [${reqId}] ATTEMPT_1 RESULT ${String(r)}`)
+      if (r === 'printed') { console.log(`[BT] [${reqId}] RESULT printed via ATTEMPT_1`); return 'printed' }
       lastErr = new Error('Native printTextWithSettings(logo) balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
+      console.log(`[BT] [${reqId}] ATTEMPT_1 ERROR ${lastErr.message}`)
+    } catch (e:any) {
+      lastErr = e
+      console.log(`[BT] [${reqId}] ATTEMPT_1 ERROR code=${e?.code || '-'} msg=${e?.message || String(e)}`)
+    }
+  } else if (logoPath && !mod.printTextWithSettings) {
+    console.log(`[BT] [${reqId}] ATTEMPT_1 SKIP no native printTextWithSettings`)
+  } else {
+    console.log(`[BT] [${reqId}] ATTEMPT_1 SKIP no logo`)
   }
   // 2) settings tanpa logo
   if (mod.printTextWithSettings) {
+    console.log(`[BT] [${reqId}] ATTEMPT_2 printTextWithSettings NO_LOGO paper=${paperSizeArg}`)
     try {
       const r = await mod.printTextWithSettings(String(addr), String(text), String(paperSizeArg), '')
-      if (r === 'printed') return 'printed'
+      console.log(`[BT] [${reqId}] ATTEMPT_2 RESULT ${String(r)}`)
+      if (r === 'printed') { console.log(`[BT] [${reqId}] RESULT printed via ATTEMPT_2`); return 'printed' }
       lastErr = new Error('Native printTextWithSettings balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
+      console.log(`[BT] [${reqId}] ATTEMPT_2 ERROR ${lastErr.message}`)
+    } catch (e:any) {
+      lastErr = e
+      console.log(`[BT] [${reqId}] ATTEMPT_2 ERROR code=${e?.code || '-'} msg=${e?.message || String(e)} stack=${(e?.message||'').slice(0,300)}`)
+    }
   }
   // 3) legacy printText
   if (mod.printText) {
+    console.log(`[BT] [${reqId}] ATTEMPT_3 legacy printText`)
     try {
       const r = await mod.printText(String(addr), String(text))
-      if (r === 'printed') return 'printed'
+      console.log(`[BT] [${reqId}] ATTEMPT_3 RESULT ${String(r)}`)
+      if (r === 'printed') { console.log(`[BT] [${reqId}] RESULT printed via ATTEMPT_3`); return 'printed' }
       lastErr = new Error('Native printText balikan bukan printed: '+String(r))
-    } catch (e:any) { lastErr = e }
+      console.log(`[BT] [${reqId}] ATTEMPT_3 ERROR ${lastErr.message}`)
+    } catch (e:any) {
+      lastErr = e
+      console.log(`[BT] [${reqId}] ATTEMPT_3 ERROR code=${e?.code || '-'} msg=${e?.message || String(e)}`)
+    }
   }
   const msg = lastErr?.message || String(lastErr || 'unknown')
-  if (lastErr?.code === 'NO_PRINTER' || msg.includes('Tidak ada printer paired') || msg.includes('NO_PRINTER')) throw new Error(msg)
-  if (msg.includes('PRINT_FAIL')) throw new Error(msg)
-  if (msg.includes('CONN') || lastErr?.code==='CONN') throw new Error('Gagal konek ke printer ('+msg+'). Cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain, masih Paired.')
-  throw new Error('Gagal mencetak ke printer: '+msg)
+  console.log(`[BT] [${reqId}] RESULT FAIL all attempts exhausted lastErr=${lastErr?.code || '-'} msg=${msg.slice(0,500)}`)
+  if (lastErr?.code === 'NO_PRINTER' || msg.includes('Tidak ada printer paired') || msg.includes('NO_PRINTER')) throw new Error(`[${reqId}] ${msg}`)
+  if (msg.includes('PRINT_FAIL')) throw new Error(`[${reqId}] ${msg} — RAW: ${msg}`)
+  if (msg.includes('CONN') || lastErr?.code==='CONN') throw new Error(`[${reqId}] Gagal konek ke printer (${msg}). Cek: printer nyala, kertas ada, jarak <3m, tidak dipakai app lain, masih Paired.`)
+  throw new Error(`[${reqId}] Gagal mencetak ke printer: ${msg}`)
+}
+
+export async function printViaBluetoothNoLogo(text: string): Promise<'printed'|'shared'|'no_printer'> {
+  return printViaBluetooth(text, { skipLogo: true })
 }
 
 export type NativePrinterStatus = {

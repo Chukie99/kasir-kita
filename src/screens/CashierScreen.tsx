@@ -185,13 +185,14 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
                 if (!success?.txId) return
                 setPrintErr(null); setPrinting(true)
                 const txt = buildReceiptText(success.txId)
+                console.log(`[DIAG] RealReceipt A WITH_LOGO txId=${success.txId} txtLen=${txt.length}`)
                 try {
                   const r = await printViaBluetooth(txt)
                   if (r === 'printed') { setPrintErr(null); setPrinting(false); return }
-                  // r === 'shared' or other should be treated as error, not fallback
                   setPrintErr(`Native mengembalikan "${r}" — bukan printed. Coba lagi atau cek kertas/Bluetooth.`)
                 } catch (e:any) {
                   const msg = e?.message || String(e)
+                  console.log(`[DIAG] RealReceipt A ERROR ${msg.slice(0,500)}`)
                   setPrintErr(msg)
                 } finally { setPrinting(false) }
               }} style={{ flex: 1 }}>
@@ -223,19 +224,37 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
           </Button>
         </View>
         {printErr && getSavedPrinter() ? (
-          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, width: '100%' }}>
-            <Button mode="contained" icon="refresh" onPress={async () => {
-              if (!success?.txId) return
-              setPrintErr(null); setPrinting(true)
-              const txt = buildReceiptText(success.txId)
-              try {
-                const r = await printViaBluetooth(txt)
-                if (r === 'printed') setPrintErr(null)
-                else setPrintErr(`Coba lagi gagal: ${r}`)
-              } catch (e:any) { setPrintErr(e?.message||String(e)) } finally { setPrinting(false) }
-            }} style={{ flex: 1 }}>Coba Lagi</Button>
-            <Button mode="outlined" icon="file-pdf-box" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch (e:any) { setPrintErr(e?.message||String(e)) } }}>Cetak PDF</Button>
-          </View>
+          <>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, width: '100%' }}>
+              <Button mode="contained" icon="refresh" onPress={async () => {
+                if (!success?.txId) return
+                setPrintErr(null); setPrinting(true)
+                const txt = buildReceiptText(success.txId)
+                console.log(`[DIAG] RealReceipt RETRY A WITH_LOGO txtLen=${txt.length}`)
+                try {
+                  const r = await printViaBluetooth(txt)
+                  if (r === 'printed') setPrintErr(null)
+                  else setPrintErr(`Coba lagi A gagal: ${r}`)
+                } catch (e:any) { const m=e?.message||String(e); console.log(`[DIAG] RETRY A ERROR ${m.slice(0,400)}`); setPrintErr(m) } finally { setPrinting(false) }
+              }} style={{ flex: 1 }}>Coba Lagi A</Button>
+              <Button mode="outlined" icon="file-pdf-box" onPress={async () => { if (success?.txId) try { await printReceipt(success.txId) } catch (e:any) { setPrintErr(e?.message||String(e)) } }}>Cetak PDF</Button>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 6, width: '100%' }}>
+              <Button mode="contained" icon="printer-outline" buttonColor="#1A495D" onPress={async () => {
+                if (!success?.txId) return
+                setPrintErr(null); setPrinting(true)
+                const txt = buildReceiptText(success.txId)
+                console.log(`[DIAG] RealReceipt B NO_LOGO txId=${success.txId} txtLen=${txt.length}`)
+                try {
+                  const { printViaBluetoothNoLogo } = await import('../utils/bluetooth')
+                  const r = await printViaBluetoothNoLogo(txt)
+                  if (r === 'printed') { console.log(`[DIAG] RealReceipt B SUCCESS printed`); setPrintErr(null) }
+                  else setPrintErr(`Coba B gagal: ${r}`)
+                } catch (e:any) { const m=e?.message||String(e); console.log(`[DIAG] RealReceipt B ERROR ${m.slice(0,500)}`); setPrintErr(`[B] ${m}`) } finally { setPrinting(false) }
+              }} style={{ flex: 1 }}>Cetak TANPA Logo (B)</Button>
+            </View>
+            <Text style={{ fontSize: 10, color: '#7895B2', textAlign: 'center', marginTop: 4 }}>DIAG: A=dengan logo  B=tanpa logo — cek adb logcat | grep DantsuPrinter/BT</Text>
+          </>
         ) : null}
         <Button mode="text" onPress={() => { setSuccess(null); setPrintErr(null) }} textColor={colors.textMuted} style={{ marginTop: 8 }}>
           Tutup — Lanjut Jualan
