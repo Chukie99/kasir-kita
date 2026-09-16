@@ -55,17 +55,26 @@ export default function CashierScreen({ onSold, tick }: { onSold: () => void; ti
   }
 
   const doCheckout = (method: 'cash' | 'qris', paid: number, discount: number, customerName = '', opts?: { isBon?: boolean; bonDueDate?: string; bonPaid?: number }) => {
+    console.log(`[CHECKOUT] START method=${method} paid=${paid} discount=${discount} customer=${customerName} isBon=${!!opts?.isBon} cartLen=${cart.length} cart=${JSON.stringify(cart.slice(0,2))}`)
     try {
       const res = checkout(cart, method, paid, discount, customerName, opts)
+      console.log(`[CHECKOUT] checkout OK invoice=${res.invoice} total=${res.total} change=${res.change}`)
       const db = require('../db/database').getDb()
       const row = db.getFirstSync('SELECT id FROM transactions ORDER BY id DESC LIMIT 1') as { id: number } | undefined
+      console.log(`[CHECKOUT] db row id=${row?.id}`)
       setSuccess({ invoice: res.invoice, change: res.change, method, txId: row?.id ?? null })
+      console.log(`[CHECKOUT] setSuccess done txId=${row?.id}`)
       setCart([])
       setShowCheckout(false)
       onSold()
+      console.log(`[CHECKOUT] DONE`)
     } catch (e: any) {
-      const { Alert } = require('react-native')
-      Alert.alert('Gagal Bayar', e?.message || String(e))
+      const msg = e?.message || String(e)
+      const stack = e?.stack ? String(e.stack).slice(0,800) : ''
+      console.log(`[CHECKOUT] ERROR msg=${msg} stack=${stack}`)
+      try { const { Alert } = require('react-native'); Alert.alert('Gagal Bayar', msg + (stack ? '\n' + stack.slice(0,200) : '')) } catch {}
+      // also surface in success modal area if modal was expected
+      setPrintErr(`[CHECKOUT] ${msg}`)
     }
   }
 
