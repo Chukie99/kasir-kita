@@ -107,7 +107,9 @@ export default function App() {
             deviceCode={deviceCode}
             onActivate={(token) => {
               const v = verifyToken(token)
-              if (v.ok) setActivated(true)
+              if (v.ok) { setActivated(true); return true }
+              // fallback legacy HMAC — activateManual() sudah storeToken, cek isActivated()
+              if (isActivated()) { setActivated(true); return true }
               return v.ok
             }}
           />
