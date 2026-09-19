@@ -1,0 +1,61 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# POS UMKM — crash logs & local
+*.log
+posumkm_crash.log
+C:*.log
+build_status.txt
+# local v5 FIXED keep only 1.0.0
+apk/pos-umkm-v1.4.*.apk
+apk/pos-umkm-v1.4.3-FIXED*.apk
+apk/pos-umkm-v1.0.1.apk
+apk/pos-umkm-v1.2.0.apk
+apk/pos-umkm-v1.3.0.apk
+# private keygen — owner only, never commit secret
+keygen.mjs
+# keygen-helper.html INCLUDED in v1.0.0 release (owner backup di GitHub)
+# local dev
+POS_UMKM_Content_Plan_30Hari.xlsx
+scr_*.png
+_apk*/
+kasir-kita-v*.apk

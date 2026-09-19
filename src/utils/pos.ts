@@ -1,0 +1,140 @@
+import { getDb } from '../db/database'
+
+export interface Product {
+  id: number
+  name: string
+  price: number
+  stock: number | null
+  image_uri: string | null
+  category_name: string | null
+  category_id: number | null
+}
+
+export interface CartLine {
+  key: string
+  productId: number
+  productName: string
+  basePrice: number
+  qty: number
+  modifiers: { label: string; extraPrice: number }[]
+  unitPrice: number
+}
+
+export function listProducts(): Product[] {
+  return getDb()
+    .getAllSync<Product>(
+      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name, p.category_id
+       FROM products p LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.is_active = 1 ORDER BY p.name`
+    )
+}
+
+export function cartTotals(cart: CartLine[], discount = 0) {
+  const subtotal = cart.reduce((s, l) => s + l.unitPrice * l.qty, 0)
+  const total = Math.max(0, subtotal - discount)
+  const itemCount = cart.reduce((s, l) => s + l.qty, 0)
+  return { subtotal, total, itemCount }
+}
+
+function nextInvoice(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`
+  const row = getDb().getFirstSync<{ c: number }>(
+    "SELECT COUNT(*) AS c FROM transactions WHERE invoice LIKE ?",
+    [`INV-${datePart}-%`]
+  )
+  const seq = String((row?.c ?? 0) + 1).padStart(4, '0')
+  return `INV-${datePart}-${seq}`
+}
+
+export function checkout(
+  cart: CartLine[],
+  paymentMethod: 'cash' | 'qris',
+  paid: number,
+  discount = 0,
+  customerName = '',
+  opts: { isBon?: boolean; bonDueDate?: string; bonPaid?: number } = {}
+): { invoice: string; total: number; change: number } {
+  if (cart.length === 0) throw new Error('Keranjang masih kosong')
+  const { total } = cartTotals(cart, discount)
+  const isBon = !!opts.isBon
+  if (!isBon && paymentMethod === 'cash' && paid < total) throw new Error('Uang bayar kurang dari total')
+  const effectivePaid = isBon ? (opts.bonPaid ?? 0) : paymentMethod === 'qris' ? total : paid
+  const change = isBon ? 0 : effectivePaid - total
+
+  // Validasi stok sebelum transaksi — jangan sampai minus
+  for (const line of cart) {
+    if (line.productId > 0) {
+      const prod = getDb().getFirstSync<{ stock: number | null }>('SELECT stock FROM products WHERE id = ?', [line.productId])
+      const stock = prod?.stock
+      if (stock !== null && stock !== undefined && stock < line.qty) {
+        throw new Error(`Stok ${line.productName} tidak cukup (sisa ${stock})`)
+      }
+    }
+  }
+
+  const db = getDb()
+  const invoice = nextInvoice()
+  db.execSync('BEGIN')
+  try {
+    const txId = Number(
+      db
+        .prepareSync(
+          'INSERT INTO transactions (invoice, total, paid, change, payment_method, discount, customer_name, is_bon, bon_paid, bon_due_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )
+        .executeSync(invoice, total, effectivePaid, change, paymentMethod, discount, customerName.trim(), isBon ? 1 : 0, isBon ? effectivePaid : 0, opts.bonDueDate || null).lastInsertRowId
+    )
+    const insItem = db.prepareSync(
+      'INSERT INTO transaction_items (transaction_id, product_name, unit_price, qty, modifiers_label, line_total) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    const decStock = db.prepareSync('UPDATE products SET stock = stock - ? WHERE id = ? AND stock IS NOT NULL AND stock >= ?')
+    for (const line of cart) {
+      const modLabel = line.modifiers.map((m) => m.label).join(', ')
+      insItem.executeSync(txId, line.productName, line.unitPrice, line.qty, modLabel, line.unitPrice * line.qty)
+      if (line.productId > 0) decStock.executeSync(line.qty, line.productId, line.qty)
+    }
+    db.execSync('COMMIT')
+  } catch (e) {
+    try { db.execSync('ROLLBACK') } catch {}
+    throw e
+  }
+  return { invoice, total, change }
+}
+
+/** Produk dengan stok menipis (<= threshold), hanya yang dilacak. */
+export function lowStockProducts(threshold = 5): Product[] {
+  return getDb()
+    .getAllSync<Product>(
+      `SELECT p.id, p.name, p.price, p.stock, p.image_uri, c.name AS category_name, p.category_id
+       FROM products p LEFT JOIN categories c ON c.id = p.category_id
+       WHERE p.is_active = 1 AND p.stock IS NOT NULL AND p.stock <= ?
+       ORDER BY p.stock ASC`,
+      [threshold]
+    )
+}
+
+export function voidTransaction(transactionId: number, reason = ''): void {
+  const db = getDb()
+  // balikin stok dulu sebelum void — surgical, jangan ubah logic lain
+  try {
+    const items = db.getAllSync<{ product_name: string; qty: number }>(
+      'SELECT product_name, qty FROM transaction_items WHERE transaction_id = ?', [transactionId]
+    )
+    for (const it of items) {
+      // cari produk by name yang masih aktif/tidak — stok null = tidak dilacak
+      // surgical: COLLATE NOCASE + prioritas is_active=1 biar kalau nama kembar gak salah
+      const prod = db.getFirstSync<{ id: number; stock: number | null }>('SELECT id, stock FROM products WHERE name = ? COLLATE NOCASE ORDER BY is_active DESC, id LIMIT 1', [it.product_name])
+      if (prod && prod.stock !== null) {
+        db.runSync('UPDATE products SET stock = stock + ? WHERE id = ?', [it.qty, prod.id])
+      }
+    }
+  } catch {}
+  db.prepareSync(
+    "UPDATE transactions SET voided = 1, voided_at = datetime('now','localtime'), void_reason = ? WHERE id = ?"
+  ).executeSync(reason, transactionId)
+}
+
+export function getTransactionById(id: number) {
+  return getDb().getFirstSync<any>('SELECT * FROM transactions WHERE id = ?', [id])
+}
